@@ -14,8 +14,9 @@ class PowerRanker {
     assert(items.size >= 2, 'PowerRanker: Cannot rank less than two items');
 
     this.items = items;
-    this.matrix = this.toMatrix(this.items, preferences, numParticipants);
     this.verbose = verbose;
+
+    this.matrix = this._toMatrix(items, preferences, numParticipants);
 
     this.log('Matrix initialized');
   }
@@ -31,12 +32,14 @@ class PowerRanker {
   /// @param nIter:int The maximum number of iterations to run the algorithm
   /// @return rankings:Map(int => float) The rankings, with item mapped to result
   run ({ d = 1, epsilon = 0.001, nIter = 1000 }) {
-    const weights = this.powerMethod(this.matrix, d, epsilon, nIter);
-    return this.applyLabels(this.items, weights);
+    const weights = this._powerMethod(this.matrix, d, epsilon, nIter);
+    return this._applyLabels(this.items, weights);
   }
 
+  // Internal
+
   // O(items)
-  applyLabels (items, eigenvector) {
+  _applyLabels (items, eigenvector) {
     const itemMap = this.#toitemMap(items);
     assert(itemMap.size === eigenvector.length, 'Mismatched arguments!');
     itemMap.forEach((ix, item) => itemMap.set(item, eigenvector[ix]));
@@ -44,7 +47,7 @@ class PowerRanker {
   }
 
   // O(preferences)
-  toMatrix (items, preferences, numParticipants) { // [{ alpha, beta, value }]
+  _toMatrix (items, preferences, numParticipants) { // [{ alpha, beta, value }]
     const n = items.size;
     const itemMap = this.#toitemMap(items);
 
@@ -79,7 +82,7 @@ class PowerRanker {
   }
 
   // O(n^3)-ish
-  powerMethod (matrix, d = 1, epsilon = 0.001, nIter = 1000) {
+  _powerMethod (matrix, d, epsilon, nIter) {
     assert(matrix.rows === matrix.cols, 'Matrix must be square!');
     const n = matrix.rows;
 
@@ -111,7 +114,7 @@ class PowerRanker {
     return eigenvector.data[0];
   }
 
-  // Internal
+  // Private
 
   #toitemMap (items) { // { id }
     return new Map(

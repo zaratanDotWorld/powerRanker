@@ -40,6 +40,21 @@ describe('PowerRanker', () => {
     expect(rankings.get(c)).to.be.almost(0.18478501429920438);
   });
 
+  it('can dampen rankings', async () => {
+    // Same preferences as above
+    const preferences = [
+      { alpha: a, beta: b, value: 1 },
+      { alpha: b, beta: c, value: 1 },
+    ];
+
+    const powerRanker = new PowerRanker({ items, numParticipants, preferences });
+    const rankings = powerRanker.run({ d: 0.5 });
+
+    expect(rankings.get(a)).to.be.almost(0.39569727579752584);
+    expect(rankings.get(b)).to.be.almost(0.3425397745768228);
+    expect(rankings.get(c)).to.be.almost(0.26176294962565094);
+  });
+
   it('can use preferences to determine mild rankings', async () => {
     const preferences = [
       { alpha: a, beta: b, value: 0.7 },
@@ -56,23 +71,24 @@ describe('PowerRanker', () => {
 
   it('can use preferences to determine complex rankings', async () => {
     const preferences = [
-      { alpha: a, beta: b, value: 1 },
-      { alpha: c, beta: b, value: 1 },
+      { alpha: a, beta: b, value: 0.7 },
+      { alpha: a, beta: c, value: 0.3 },
+      { alpha: b, beta: c, value: 0.3 },
     ];
 
     const powerRanker = new PowerRanker({ items, numParticipants, preferences });
     const rankings = powerRanker.run({ d });
 
-    expect(rankings.get(a)).to.be.almost(0.43135897930403255);
-    expect(rankings.get(b)).to.be.almost(0.13728204139193492);
-    expect(rankings.get(c)).to.be.almost(0.43135897930403255);
+    expect(rankings.get(a)).to.be.almost(0.25572135860019535);
+    expect(rankings.get(b)).to.be.almost(0.1411003954995132);
+    expect(rankings.get(c)).to.be.almost(0.6031782459002907);
   });
 
   it('can handle circular rankings', async () => {
     const preferences = [
       { alpha: a, beta: b, value: 1 },
       { alpha: b, beta: c, value: 1 },
-      { alpha: c, beta: a, value: 1 },
+      { alpha: a, beta: c, value: 0 },
     ];
 
     const powerRanker = new PowerRanker({ items, numParticipants, preferences });
