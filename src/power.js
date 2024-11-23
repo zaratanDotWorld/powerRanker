@@ -9,7 +9,7 @@ class PowerRanker {
   /// @notice Construct an instance of a PowerRanker
   /// @param items:Set(str) The items being voted on
   /// @param numParticipants:int The number of participants
-  /// @param preferences:Array[{alpha:str, beta:str, value:float}] The preferences of the participants
+  /// @param preferences:Array[{target:str, source:str, value:float}] The preferences of the participants
   constructor ({ items, numParticipants, preferences, verbose = false }) {
     assert(items.size >= 2, 'PowerRanker: Cannot rank less than two items');
 
@@ -47,7 +47,7 @@ class PowerRanker {
   }
 
   // O(preferences)
-  _toMatrix (items, preferences, numParticipants) { // [{ alpha, beta, value }]
+  _toMatrix (items, preferences, numParticipants) { // [{ target, source, value }]
     const n = items.size;
     const itemMap = this.#toitemMap(items);
 
@@ -63,16 +63,16 @@ class PowerRanker {
     // Add the preferences to the off-diagonals, removing the implicit neutral preference
     // Recall that value > 0.5 is flow towards, value < 0.5 is flow away
     preferences.forEach((p) => {
-      const alphaIx = itemMap.get(p.alpha);
-      const betaIx = itemMap.get(p.beta);
-      matrix.data[betaIx][alphaIx] -= implicitPref;
-      matrix.data[alphaIx][betaIx] -= implicitPref;
+      const targetIx = itemMap.get(p.target);
+      const sourceIx = itemMap.get(p.source);
+      matrix.data[sourceIx][targetIx] -= implicitPref;
+      matrix.data[targetIx][sourceIx] -= implicitPref;
 
       // We only record the dominant preference
       if (p.value >= 0.5) {
-        matrix.data[betaIx][alphaIx] += p.value;
+        matrix.data[sourceIx][targetIx] += p.value;
       } else {
-        matrix.data[alphaIx][betaIx] += (1 - p.value);
+        matrix.data[targetIx][sourceIx] += (1 - p.value);
       }
     });
 
