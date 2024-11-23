@@ -1,6 +1,6 @@
 {
   "name": "power-ranker",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Multipurpose Power Ranker implementation",
   "repository": "git@github.com:zaratanDotWorld/powerRanker.git",
   "author": "Daniel Kronovet <krono@zaratan.world>",
