@@ -9,15 +9,14 @@ class PowerRanker {
   /// @notice Construct an instance of a PowerRanker
   /// @param items:Set(str) The items being voted on
   /// @param numParticipants:int The number of participants
-  /// @param preferences:Array[{target:str, source:str, value:float}] The preferences of the participants
-  constructor ({ items, numParticipants, preferences, verbose = false }) {
+  constructor ({ items, numParticipants, verbose = false }) {
     assert(items.size >= 2, 'PowerRanker: Cannot rank less than two items');
 
     this.items = items;
+    this.numParticipants = numParticipants;
+    this.matrix = this._prepareMatrix(items, numParticipants);
+
     this.verbose = verbose;
-
-    this.matrix = this._toMatrix(items, preferences, numParticipants);
-
     this.log('Matrix initialized');
   }
 
@@ -26,39 +25,13 @@ class PowerRanker {
     if (this.verbose) { console.log(msg); }
   }
 
-  /// @notice Run the algorithm and return the results
-  /// @param d:float The damping factor, 1 means no damping
-  /// @param epsilon:float The precision at which to run the algorithm
-  /// @param nIter:int The maximum number of iterations to run the algorithm
-  /// @return rankings:Map(int => float) The rankings, with item mapped to result
-  run ({ d = 1, epsilon = 0.001, nIter = 1000 }) {
-    const weights = this._powerMethod(this.matrix, d, epsilon, nIter);
-    return this._applyLabels(this.items, weights);
-  }
-
-  // Internal
-
-  // O(items)
-  _applyLabels (items, eigenvector) {
-    const itemMap = this.#toitemMap(items);
-    assert(itemMap.size === eigenvector.length, 'Mismatched arguments!');
-    itemMap.forEach((ix, item) => itemMap.set(item, eigenvector[ix]));
-    return itemMap;
-  }
-
-  // O(preferences)
-  _toMatrix (items, preferences, numParticipants) { // [{ target, source, value }]
-    const n = items.size;
-    const itemMap = this.#toitemMap(items);
-
-    // Initialise the zero matrix;
-    let matrix = linAlg.Matrix.zero(n, n);
-
-    // Add implicit neutral preferences
-    const implicitPref = (1 / numParticipants) / 2; // Halve the value since used twice
-    matrix = matrix
-      .plusEach(1).minus(linAlg.Matrix.identity(n))
-      .mulEach(implicitPref).mulEach(numParticipants);
+  /// @notice Add preferences to the matrix
+  /// @dev Complexity is O(preferences.length)
+  /// @param preferences:Array[{target:str, source:str, value:float}] The preferences of the participants
+  addPreferences (preferences) { // [{ target, source, value }]
+    const matrix = this.matrix;
+    const itemMap = this.#toitemMap(this.items);
+    const implicitPref = this._getImplicitPref();
 
     // Add the preferences to the off-diagonals, removing the implicit neutral preference
     // Recall that value > 0.5 is flow towards, value < 0.5 is flow away
@@ -78,10 +51,45 @@ class PowerRanker {
 
     // Add the diagonals (sums of columns)
     this.#sumColumns(matrix).map((sum, ix) => matrix.data[ix][ix] = sum); // eslint-disable-line no-return-assign
+  }
+
+  /// @notice Run the algorithm and return the results
+  /// @param d:float The damping factor, 1 means no damping
+  /// @param epsilon:float The precision at which to run the algorithm
+  /// @param nIter:int The maximum number of iterations to run the algorithm
+  /// @return rankings:Map(int => float) The rankings, with item mapped to result
+  run ({ d = 1, epsilon = 0.001, nIter = 1000 }) {
+    const weights = this._powerMethod(this.matrix, d, epsilon, nIter);
+    return this._applyLabels(this.items, weights);
+  }
+
+  // Internal
+
+  // Complexity is O(items.length)
+  _applyLabels (items, eigenvector) {
+    const itemMap = this.#toitemMap(items);
+    assert(itemMap.size === eigenvector.length, 'Mismatched arguments!');
+    itemMap.forEach((ix, item) => itemMap.set(item, eigenvector[ix]));
+
+    return itemMap;
+  }
+
+  _prepareMatrix (items, numParticipants) {
+    const n = items.size;
+
+    // Initialise the zero matrix;
+    let matrix = linAlg.Matrix.zero(n, n);
+
+    // Add implicit neutral preferences
+    const implicitPref = this._getImplicitPref();
+    matrix = matrix
+      .plusEach(1).minus(linAlg.Matrix.identity(n))
+      .mulEach(implicitPref).mulEach(numParticipants);
+
     return matrix;
   }
 
-  // O(n^3)-ish
+  // Complexity is O(n^3)-ish
   _powerMethod (matrix, d, epsilon, nIter) {
     assert(matrix.rows === matrix.cols, 'Matrix must be square!');
     const n = matrix.rows;
@@ -112,6 +120,10 @@ class PowerRanker {
 
     this.log(`Eigenvector convergence after ${i} iterations`);
     return eigenvector.data[0];
+  }
+
+  _getImplicitPref () {
+    return (1 / this.numParticipants) / 2; // Halve the value since used twice
   }
 
   // Private

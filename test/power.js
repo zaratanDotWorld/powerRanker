@@ -16,7 +16,7 @@ describe('PowerRanker', () => {
   const d = 0.99;
 
   it('can return uniform rankings implicitly', async () => {
-    const powerRanker = new PowerRanker({ items, numParticipants, preferences: [] });
+    const powerRanker = new PowerRanker({ items, numParticipants });
     const rankings = powerRanker.run({ d });
 
     expect(rankings.get(a)).to.be.almost(0.3333333333333333);
@@ -25,12 +25,13 @@ describe('PowerRanker', () => {
   });
 
   it('can use preferences to determine rankings', async () => {
-    const preferences = [
+    const powerRanker = new PowerRanker({ items, numParticipants });
+
+    powerRanker.addPreferences([
       { target: a, source: b, value: 1 },
       { target: b, source: c, value: 1 },
-    ];
+    ]);
 
-    const powerRanker = new PowerRanker({ items, numParticipants, preferences });
     const rankings = powerRanker.run({ d });
 
     expect(rankings.get(a)).to.be.almost(0.5038945471248252);
@@ -39,13 +40,14 @@ describe('PowerRanker', () => {
   });
 
   it('can dampen rankings', async () => {
+    const powerRanker = new PowerRanker({ items, numParticipants });
+
     // Same preferences as above
-    const preferences = [
+    powerRanker.addPreferences([
       { target: a, source: b, value: 1 },
       { target: b, source: c, value: 1 },
-    ];
+    ]);
 
-    const powerRanker = new PowerRanker({ items, numParticipants, preferences });
     const rankings = powerRanker.run({ d: 0.5 });
 
     expect(rankings.get(a)).to.be.almost(0.39569727579752584);
@@ -54,12 +56,13 @@ describe('PowerRanker', () => {
   });
 
   it('can use preferences to determine mild rankings', async () => {
-    const preferences = [
+    const powerRanker = new PowerRanker({ items, numParticipants });
+
+    powerRanker.addPreferences([
       { target: a, source: b, value: 0.7 },
       { target: b, source: c, value: 0.7 },
-    ];
+    ]);
 
-    const powerRanker = new PowerRanker({ items, numParticipants, preferences });
     const rankings = powerRanker.run({ d });
 
     expect(rankings.get(a)).to.be.almost(0.4670116340772533);
@@ -68,13 +71,14 @@ describe('PowerRanker', () => {
   });
 
   it('can use preferences to determine complex rankings', async () => {
-    const preferences = [
+    const powerRanker = new PowerRanker({ items, numParticipants });
+
+    powerRanker.addPreferences([
       { target: a, source: b, value: 0.7 },
       { target: a, source: c, value: 0.3 },
       { target: b, source: c, value: 0.3 },
-    ];
+    ]);
 
-    const powerRanker = new PowerRanker({ items, numParticipants, preferences });
     const rankings = powerRanker.run({ d });
 
     expect(rankings.get(a)).to.be.almost(0.25572135860019535);
@@ -83,13 +87,14 @@ describe('PowerRanker', () => {
   });
 
   it('can handle circular rankings', async () => {
-    const preferences = [
+    const powerRanker = new PowerRanker({ items, numParticipants });
+
+    powerRanker.addPreferences([
       { target: a, source: b, value: 1 },
       { target: b, source: c, value: 1 },
       { target: c, source: a, value: 1 },
-    ];
+    ]);
 
-    const powerRanker = new PowerRanker({ items, numParticipants, preferences });
     const rankings = powerRanker.run({ d });
 
     expect(rankings.get(a)).to.be.almost(0.3333333333333333);
