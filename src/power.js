@@ -26,7 +26,7 @@ class PowerRanker {
   }
 
   /// @notice Add preferences to the matrix
-  /// @dev Complexity is O(preferences.length)
+  /// @dev Complexity is O(n)
   /// @param preferences:Array[{target:str, source:str, value:float}] The preferences of the participants
   addPreferences (preferences) { // [{ target, source, value }]
     const matrix = this.matrix;
@@ -63,9 +63,28 @@ class PowerRanker {
     return this._applyLabels(this.items, weights);
   }
 
+  /// @notice Generate the Beta variance per pair
+  /// @dev Complexity is O(n^2)
+  /// @return Array[{alpha:str, beta:str, variance:float}] The variances
+  getVariances () {
+    const items = this.#sort(this.items);
+    const variances = [];
+
+    items.forEach((alpha, i) => {
+      items.forEach((beta, j) => {
+        if (i < j) {
+          const variance = this._getVariance(i, j);
+          variances.push({ alpha, beta, variance });
+        }
+      });
+    });
+
+    return variances;
+  }
+
   // Internal
 
-  // Complexity is O(items.length)
+  // Complexity is O(n)
   _applyLabels (items, eigenvector) {
     const itemMap = this.#toitemMap(items);
     assert(itemMap.size === eigenvector.length, 'Mismatched arguments!');
@@ -74,17 +93,20 @@ class PowerRanker {
     return itemMap;
   }
 
+  // Complexity is O(1)
   _prepareMatrix (items, numParticipants) {
     const n = items.size;
 
     // Initialise the zero matrix;
     let matrix = linAlg.Matrix.zero(n, n);
 
-    // Add implicit neutral preferences
-    const implicitPref = this._getImplicitPref();
-    matrix = matrix
-      .plusEach(1).minus(linAlg.Matrix.identity(n))
-      .mulEach(implicitPref).mulEach(numParticipants);
+    if (numParticipants) {
+      // Add implicit neutral preferences
+      const implicitPref = this._getImplicitPref();
+      matrix = matrix
+        .plusEach(1).minus(linAlg.Matrix.identity(n))
+        .mulEach(implicitPref).mulEach(numParticipants);
+    }
 
     return matrix;
   }
@@ -122,18 +144,34 @@ class PowerRanker {
     return eigenvector.data[0];
   }
 
+  // Complexity is O(1)
+  _getVariance (i, j) {
+    // Model as a Beta distribution with a (1, 1) prior
+    const a = this.matrix.data[i][j] + 1;
+    const b = this.matrix.data[j][i] + 1;
+
+    return (a * b) /
+      ((a + b + 1) * (a + b) ** 2);
+  }
+
   _getImplicitPref () {
-    return (1 / this.numParticipants) / 2; // Halve the value since used twice
+    return (this.numParticipants)
+      ? (1 / this.numParticipants) / 2 // Halve the value since used twice
+      : 0;
   }
 
   // Private
 
   #toitemMap (items) { // { id }
     return new Map(
-      Array.from(items)
-        .sort((a, b) => a - b) // Javascript is the worst
+      this.#sort(items)
         .map((item, ix) => [ item, ix ]), // ItemName -> MatrixIdx
     );
+  }
+
+  #sort (items) {
+    return Array.from(items)
+      .sort((a, b) => a - b);
   }
 
   #norm (array) {
