@@ -106,7 +106,7 @@ describe('PowerRanker', () => {
 
   describe('generating variances', () => {
     it('can get variances', async () => {
-      const powerRanker = new PowerRanker({ items, numParticipants: 0 });
+      const powerRanker = new PowerRanker({ items });
 
       let variances;
 

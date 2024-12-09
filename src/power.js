@@ -8,8 +8,8 @@ class PowerRanker {
 
   /// @notice Construct an instance of a PowerRanker
   /// @param items:Set(str) The items being voted on
-  /// @param numParticipants:int The number of participants
-  constructor ({ items, numParticipants, verbose = false }) {
+  /// @param numParticipants:int The number of implicit participants
+  constructor ({ items, numParticipants = 0, verbose = false }) {
     assert(items.size >= 2, 'PowerRanker: Cannot rank less than two items');
 
     this.items = items;
@@ -33,11 +33,13 @@ class PowerRanker {
     const itemMap = this.#toitemMap(this.items);
     const implicitPref = this._getImplicitPref();
 
-    // Add the preferences to the off-diagonals, removing the implicit neutral preference
+    // Add the preferences to the off-diagonals
     // Recall that value > 0.5 is flow towards, value < 0.5 is flow away
     preferences.forEach((p) => {
       const targetIx = itemMap.get(p.target);
       const sourceIx = itemMap.get(p.source);
+
+      // Remove the implicit neutral preference
       matrix.data[sourceIx][targetIx] -= implicitPref;
       matrix.data[targetIx][sourceIx] -= implicitPref;
 
@@ -101,7 +103,7 @@ class PowerRanker {
     let matrix = linAlg.Matrix.zero(n, n);
 
     if (numParticipants) {
-      // Add implicit neutral preferences
+      // Add implicit neutral preferences for all participants
       const implicitPref = this._getImplicitPref();
       matrix = matrix
         .plusEach(1).minus(linAlg.Matrix.identity(n))
