@@ -7,17 +7,22 @@ const chaiAlmost = require('chai-almost');
 chai.use(chaiAsPromised);
 chai.use(chaiAlmost());
 
+const randomstring = require('randomstring');
+
 const PowerRanker = require('../src/power');
 
 describe('PowerRanker', () => {
-  const [ a, b, c ] = [ 'a', 'b', 'c' ];
+  const a = randomstring.generate();
+  const b = randomstring.generate();
+  const c = randomstring.generate();
   const items = new Set([ a, b, c ]);
-  const numParticipants = 3;
+
+  const options = { numParticipants: 3, implicitPref: (1 / 3) / 2 };
   const d = 0.99;
 
   describe('generating rankings', () => {
     it('can return uniform rankings implicitly', async () => {
-      const powerRanker = new PowerRanker({ items, numParticipants });
+      const powerRanker = new PowerRanker({ items, options });
       const rankings = powerRanker.run({ d });
 
       expect(rankings.get(a)).to.be.almost(0.3333333333333333);
@@ -26,7 +31,7 @@ describe('PowerRanker', () => {
     });
 
     it('can use preferences to determine rankings', async () => {
-      const powerRanker = new PowerRanker({ items, numParticipants });
+      const powerRanker = new PowerRanker({ items, options });
 
       powerRanker.addPreferences([
         { target: a, source: b, value: 1 },
@@ -41,7 +46,7 @@ describe('PowerRanker', () => {
     });
 
     it('can dampen rankings', async () => {
-      const powerRanker = new PowerRanker({ items, numParticipants });
+      const powerRanker = new PowerRanker({ items, options });
 
       // Same preferences as above
       powerRanker.addPreferences([
@@ -57,7 +62,7 @@ describe('PowerRanker', () => {
     });
 
     it('can use preferences to determine mild rankings', async () => {
-      const powerRanker = new PowerRanker({ items, numParticipants });
+      const powerRanker = new PowerRanker({ items, options });
 
       powerRanker.addPreferences([
         { target: a, source: b, value: 0.7 },
@@ -72,7 +77,7 @@ describe('PowerRanker', () => {
     });
 
     it('can use preferences to determine complex rankings', async () => {
-      const powerRanker = new PowerRanker({ items, numParticipants });
+      const powerRanker = new PowerRanker({ items, options });
 
       powerRanker.addPreferences([
         { target: a, source: b, value: 0.7 },
@@ -88,7 +93,7 @@ describe('PowerRanker', () => {
     });
 
     it('can handle circular rankings', async () => {
-      const powerRanker = new PowerRanker({ items, numParticipants });
+      const powerRanker = new PowerRanker({ items, options });
 
       powerRanker.addPreferences([
         { target: a, source: b, value: 1 },
@@ -106,7 +111,7 @@ describe('PowerRanker', () => {
 
   describe('generating variances', () => {
     it('can get variances', async () => {
-      const powerRanker = new PowerRanker({ items, numParticipants: 0 });
+      const powerRanker = new PowerRanker({ items });
 
       let variances;
 
