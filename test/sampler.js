@@ -7,11 +7,15 @@ const chaiAlmost = require('chai-almost');
 chai.use(chaiAsPromised);
 chai.use(chaiAlmost());
 
+const randomstring = require('randomstring');
+
 const PowerRanker = require('../src/power');
 const AdaptiveSampler = require('../src/sampler');
 
 describe('AdaptiveSampler', () => {
-  const [ a, b, c ] = [ 'a', 'b', 'c' ];
+  const a = randomstring.generate();
+  const b = randomstring.generate();
+  const c = randomstring.generate();
   const items = new Set([ a, b, c ]);
 
   describe('suggesting pairs', () => {

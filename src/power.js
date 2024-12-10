@@ -3,35 +3,36 @@ const linAlg = require('linear-algebra')();
 
 class PowerRanker {
   items; // Set(str)
+  options; // Object
   matrix; // linAlg.Matrix
-  verbose; // bool
 
   /// @notice Construct an instance of a PowerRanker
-  /// @param items:Set(str) The items being voted on
-  /// @param numParticipants:int The number of implicit participants
-  constructor ({ items, numParticipants = 0, verbose = false }) {
+  /// @param items:Set(str) The items being decided
+  /// @param options:Object The additional options
+  constructor ({ items, options = {} }) {
     assert(items.size >= 2, 'PowerRanker: Cannot rank less than two items');
 
-    this.items = items;
-    this.numParticipants = numParticipants;
-    this.matrix = this._prepareMatrix(items, numParticipants);
+    this.items = this.#sort(items);
+    this.options = options;
 
-    this.verbose = verbose;
+    this.matrix = this._prepareMatrix();
+
     this.log('Matrix initialized');
   }
 
   log (msg) {
     /* istanbul ignore next */
-    if (this.verbose) { console.log(msg); }
+    if (this.options.verbose) { console.log(msg); }
   }
 
   /// @notice Add preferences to the matrix
+  /// @dev We assume max one submission per participant/pair
   /// @dev Complexity is O(n)
   /// @param preferences:Array[{target:str, source:str, value:float}] The preferences of the participants
   addPreferences (preferences) { // [{ target, source, value }]
     const matrix = this.matrix;
-    const itemMap = this.#toitemMap(this.items);
-    const implicitPref = this._getImplicitPref();
+    const itemMap = this.#toItemMap(this.items);
+    const implicitPref = this.options.implicitPref || 0;
 
     // Add the preferences to the off-diagonals
     // Recall that value > 0.5 is flow towards, value < 0.5 is flow away
@@ -62,18 +63,17 @@ class PowerRanker {
   /// @return rankings:Map(int => float) The rankings, with item mapped to result
   run ({ d = 1, epsilon = 0.001, nIter = 1000 }) {
     const weights = this._powerMethod(this.matrix, d, epsilon, nIter);
-    return this._applyLabels(this.items, weights);
+    return this._applyLabels(weights);
   }
 
   /// @notice Generate the Beta variance per pair
   /// @dev Complexity is O(n^2)
   /// @return Array[{alpha:str, beta:str, variance:float}] The variances
   getVariances () {
-    const items = this.#sort(this.items);
     const variances = [];
 
-    items.forEach((alpha, i) => {
-      items.forEach((beta, j) => {
+    this.items.forEach((alpha, i) => {
+      this.items.forEach((beta, j) => {
         if (i < j) {
           const variance = this._getVariance(i, j);
           variances.push({ alpha, beta, variance });
@@ -87,27 +87,29 @@ class PowerRanker {
   // Internal
 
   // Complexity is O(n)
-  _applyLabels (items, eigenvector) {
-    const itemMap = this.#toitemMap(items);
+  _applyLabels (eigenvector) {
+    const itemMap = this.#toItemMap(this.items);
     assert(itemMap.size === eigenvector.length, 'Mismatched arguments!');
-    itemMap.forEach((ix, item) => itemMap.set(item, eigenvector[ix]));
 
+    itemMap.forEach((ix, item) => itemMap.set(item, eigenvector[ix]));
     return itemMap;
   }
 
   // Complexity is O(1)
-  _prepareMatrix (items, numParticipants) {
-    const n = items.size;
+  _prepareMatrix () {
+    const n = this.items.length;
 
     // Initialise the zero matrix;
     let matrix = linAlg.Matrix.zero(n, n);
 
-    if (numParticipants) {
-      // Add implicit neutral preferences for all participants
-      const implicitPref = this._getImplicitPref();
+    // Add implicit neutral preferences for all participants
+    if (this.options.numParticipants) {
+      const numParticipants = this.options.numParticipants;
+      const implicitPref = this.options.implicitPref || 0;
+
       matrix = matrix
         .plusEach(1).minus(linAlg.Matrix.identity(n))
-        .mulEach(implicitPref).mulEach(numParticipants);
+        .mulEach(numParticipants).mulEach(implicitPref);
     }
 
     return matrix;
@@ -156,24 +158,15 @@ class PowerRanker {
       ((a + b + 1) * (a + b) ** 2);
   }
 
-  _getImplicitPref () {
-    return (this.numParticipants)
-      ? (1 / this.numParticipants) / 2 // Halve the value since used twice
-      : 0;
-  }
-
   // Private
 
-  #toitemMap (items) { // { id }
-    return new Map(
-      this.#sort(items)
-        .map((item, ix) => [ item, ix ]), // ItemName -> MatrixIdx
-    );
+  #toItemMap (items) { // [ id ]
+    // ItemName -> MatrixIdx
+    return new Map(items.map((item, ix) => [ item, ix ]));
   }
 
   #sort (items) {
-    return Array.from(items)
-      .sort((a, b) => a - b);
+    return Array.from(items).sort((a, b) => a - b);
   }
 
   #norm (array) {
