@@ -4,7 +4,7 @@
 
 # powerRanker
 
-Multipurpose Power Ranker implementation for determining probability distributions over sets of items based on weighted pairwise preference inputs.
+Multipurpose Power Ranker implementation for determining probability distributions over sets of items based on weighted pairwise preference inputs. [Chore Wheel](https://github.com/zaratanDotWorld/choreWheel) spin-off.
 
 ---
 
