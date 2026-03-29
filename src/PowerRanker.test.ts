@@ -168,7 +168,7 @@ describe('PowerRanker (bidirectional, default)', () => {
 });
 
 describe('PowerRanker (unidirectional flow)', () => {
-  test('only records dominant direction', () => {
+  test('ranks by strong preferences', () => {
     const ranker = new PowerRanker({
       items: makeItems(ITEM_A, ITEM_B, ITEM_C),
       options: { k: K, flow: 'unidirectional' },
@@ -179,31 +179,50 @@ describe('PowerRanker (unidirectional flow)', () => {
 
     const rankings = ranker.run();
 
-    // Unidirectional produces different values than bidirectional
-    // A should still rank highest, C lowest
-    expect(score(rankings, ITEM_A)).toBeGreaterThan(score(rankings, ITEM_B));
-    expect(score(rankings, ITEM_B)).toBeGreaterThan(score(rankings, ITEM_C));
+    // Strong prefs (value=1) match bidirectional since scaled = (1-0.5)*2 = 1
+    expect(score(rankings, ITEM_A)).toBeCloseTo(0.6504044299518104);
+    expect(score(rankings, ITEM_B)).toBeCloseTo(0.25639052368514753);
+    expect(score(rankings, ITEM_C)).toBeCloseTo(0.093205046363043);
   });
 
-  test('mild preferences differ from bidirectional', () => {
-    const biRanker = new PowerRanker({
-      items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-      options: { k: K, flow: 'bidirectional' },
-    });
-    biRanker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
-    biRanker.addPreference(pref(ITEM_B, ITEM_C, 0.7));
-    const biRankings = biRanker.run();
-
-    const uniRanker = new PowerRanker({
+  test('ranks by mild preferences', () => {
+    const ranker = new PowerRanker({
       items: makeItems(ITEM_A, ITEM_B, ITEM_C),
       options: { k: K, flow: 'unidirectional' },
     });
-    uniRanker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
-    uniRanker.addPreference(pref(ITEM_B, ITEM_C, 0.7));
-    const uniRankings = uniRanker.run();
 
-    // The rankings should differ because unidirectional discards reverse flow
-    expect(score(uniRankings, ITEM_A)).not.toBeCloseTo(score(biRankings, ITEM_A), 3);
+    ranker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
+    ranker.addPreference(pref(ITEM_B, ITEM_C, 0.7));
+
+    let rankings = ranker.run();
+
+    // Mild prefs differ from bidirectional: no reverse flow, so less separation
+    expect(score(rankings, ITEM_A)).toBeCloseTo(0.5109403527338869);
+    expect(score(rankings, ITEM_B)).toBeCloseTo(0.32920913470298835);
+    expect(score(rankings, ITEM_C)).toBeCloseTo(0.15985051256312477);
+
+    ranker.addPreference(pref(ITEM_A, ITEM_C, 0.7));
+    rankings = ranker.run();
+
+    expect(score(rankings, ITEM_A)).toBeCloseTo(0.6466057252810165);
+    expect(score(rankings, ITEM_B)).toBeCloseTo(0.233394240140871);
+    expect(score(rankings, ITEM_C)).toBeCloseTo(0.12000003457811251);
+  });
+
+  test('ranks with complex preferences', () => {
+    const ranker = new PowerRanker({
+      items: makeItems(ITEM_A, ITEM_B, ITEM_C),
+      options: { k: K, flow: 'unidirectional' },
+    });
+
+    ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
+    ranker.addPreference(pref(ITEM_C, ITEM_B, 1));
+
+    const rankings = ranker.run();
+
+    expect(score(rankings, ITEM_A)).toBeCloseTo(0.45208724954750107);
+    expect(score(rankings, ITEM_B)).toBeCloseTo(0.09582550090499836);
+    expect(score(rankings, ITEM_C)).toBeCloseTo(0.45208724954750096);
   });
 
   test('handles circular preferences', () => {
@@ -221,6 +240,53 @@ describe('PowerRanker (unidirectional flow)', () => {
     expect(score(rankings, ITEM_A)).toBeCloseTo(1 / 3);
     expect(score(rankings, ITEM_B)).toBeCloseTo(1 / 3);
     expect(score(rankings, ITEM_C)).toBeCloseTo(1 / 3);
+  });
+
+  test('rankings shift when preferences change', () => {
+    let ranker = new PowerRanker({
+      items: makeItems(ITEM_A, ITEM_B, ITEM_C),
+      options: { k: K, flow: 'unidirectional' },
+    });
+    ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
+    ranker.addPreference(pref(ITEM_B, ITEM_C, 1));
+    let rankings = ranker.run();
+    expect(score(rankings, ITEM_A)).toBeCloseTo(0.6504044299518104);
+
+    ranker = new PowerRanker({
+      items: makeItems(ITEM_A, ITEM_B, ITEM_C),
+      options: { k: K, flow: 'unidirectional' },
+    });
+    ranker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
+    ranker.addPreference(pref(ITEM_B, ITEM_C, 1));
+    rankings = ranker.run();
+    expect(score(rankings, ITEM_A)).toBeCloseTo(0.4395874692001581);
+    expect(score(rankings, ITEM_B)).toBeCloseTo(0.43882103155500896);
+
+    ranker = new PowerRanker({
+      items: makeItems(ITEM_A, ITEM_B, ITEM_C),
+      options: { k: K, flow: 'unidirectional' },
+    });
+    ranker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
+    ranker.addPreference(pref(ITEM_B, ITEM_C, 0.7));
+    rankings = ranker.run();
+    expect(score(rankings, ITEM_A)).toBeCloseTo(0.5109403527338869);
+    expect(score(rankings, ITEM_B)).toBeCloseTo(0.32920913470298835);
+  });
+
+  test('strong preferences converge sharply without k', () => {
+    const ranker = new PowerRanker({
+      items: makeItems(ITEM_A, ITEM_B, ITEM_C),
+      options: { flow: 'unidirectional' },
+    });
+
+    ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
+    ranker.addPreference(pref(ITEM_B, ITEM_C, 1));
+
+    const rankings = ranker.run();
+
+    expect(score(rankings, ITEM_A)).toBeCloseTo(0.99951171875, 10);
+    expect(score(rankings, ITEM_B)).toBeCloseTo(0.00048828125, 10);
+    expect(score(rankings, ITEM_C)).toBeCloseTo(0, 10);
   });
 });
 

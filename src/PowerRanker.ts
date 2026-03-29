@@ -104,10 +104,13 @@ export class PowerRanker {
       d[sourceIx][targetIx] += p.value;
       d[targetIx][sourceIx] += 1 - p.value;
     } else {
-      if (p.value >= 0.5) {
-        d[sourceIx][targetIx] += p.value;
+      // Scale so 0.5 -> 0, 0.7 -> 0.4, etc.
+      const scaled = (p.value - 0.5) * 2;
+
+      if (scaled > 0) {
+        d[sourceIx][targetIx] += scaled;
       } else {
-        d[targetIx][sourceIx] += (1 - p.value);
+        d[targetIx][sourceIx] += -scaled;
       }
     }
   }
