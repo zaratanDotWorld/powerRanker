@@ -51,7 +51,8 @@ describe('PowerRanker (bidirectional, default)', () => {
         options: { k: K },
       });
 
-      ranker.addPreferences([pref(ITEM_A, ITEM_B, 1), pref(ITEM_B, ITEM_C, 1)]);
+      ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
+      ranker.addPreference(pref(ITEM_B, ITEM_C, 1));
 
       const rankings = ranker.run();
 
@@ -66,7 +67,8 @@ describe('PowerRanker (bidirectional, default)', () => {
         options: { k: K },
       });
 
-      ranker.addPreferences([pref(ITEM_A, ITEM_B, 0.7), pref(ITEM_B, ITEM_C, 0.7)]);
+      ranker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
+      ranker.addPreference(pref(ITEM_B, ITEM_C, 0.7));
 
       let rankings = ranker.run();
 
@@ -74,7 +76,7 @@ describe('PowerRanker (bidirectional, default)', () => {
       expect(score(rankings, ITEM_B)).toBeCloseTo(0.4166002074347627);
       expect(score(rankings, ITEM_C)).toBeCloseTo(0.17650468844510636);
 
-      ranker.addPreferences([pref(ITEM_A, ITEM_C, 0.7)]);
+      ranker.addPreference(pref(ITEM_A, ITEM_C, 0.7));
       rankings = ranker.run();
 
       expect(score(rankings, ITEM_A)).toBeCloseTo(0.48552824664847594);
@@ -88,7 +90,8 @@ describe('PowerRanker (bidirectional, default)', () => {
         options: { k: K },
       });
 
-      ranker.addPreferences([pref(ITEM_A, ITEM_B, 1), pref(ITEM_C, ITEM_B, 1)]);
+      ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
+      ranker.addPreference(pref(ITEM_C, ITEM_B, 1));
 
       const rankings = ranker.run();
 
@@ -103,11 +106,9 @@ describe('PowerRanker (bidirectional, default)', () => {
         options: { k: K },
       });
 
-      ranker.addPreferences([
-        pref(ITEM_A, ITEM_B, 1),
-        pref(ITEM_B, ITEM_C, 1),
-        pref(ITEM_C, ITEM_A, 1),
-      ]);
+      ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
+      ranker.addPreference(pref(ITEM_B, ITEM_C, 1));
+      ranker.addPreference(pref(ITEM_C, ITEM_A, 1));
 
       const rankings = ranker.run();
 
@@ -121,7 +122,8 @@ describe('PowerRanker (bidirectional, default)', () => {
         items: makeItems(ITEM_A, ITEM_B, ITEM_C),
         options: { k: K },
       });
-      ranker.addPreferences([pref(ITEM_A, ITEM_B, 1), pref(ITEM_B, ITEM_C, 1)]);
+      ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
+      ranker.addPreference(pref(ITEM_B, ITEM_C, 1));
       let rankings = ranker.run();
       expect(score(rankings, ITEM_A)).toBeCloseTo(0.6504044299518104);
 
@@ -129,7 +131,8 @@ describe('PowerRanker (bidirectional, default)', () => {
         items: makeItems(ITEM_A, ITEM_B, ITEM_C),
         options: { k: K },
       });
-      ranker.addPreferences([pref(ITEM_A, ITEM_B, 0.7), pref(ITEM_B, ITEM_C, 1)]);
+      ranker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
+      ranker.addPreference(pref(ITEM_B, ITEM_C, 1));
       rankings = ranker.run();
       expect(score(rankings, ITEM_A)).toBeCloseTo(0.43753649364391556);
       expect(score(rankings, ITEM_B)).toBeCloseTo(0.4780745171818418);
@@ -138,7 +141,8 @@ describe('PowerRanker (bidirectional, default)', () => {
         items: makeItems(ITEM_A, ITEM_B, ITEM_C),
         options: { k: K },
       });
-      ranker.addPreferences([pref(ITEM_A, ITEM_B, 0.7), pref(ITEM_B, ITEM_C, 0.7)]);
+      ranker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
+      ranker.addPreference(pref(ITEM_B, ITEM_C, 0.7));
       rankings = ranker.run();
       expect(score(rankings, ITEM_A)).toBeCloseTo(0.4068951041201312);
       expect(score(rankings, ITEM_B)).toBeCloseTo(0.4166002074347627);
@@ -151,7 +155,8 @@ describe('PowerRanker (bidirectional, default)', () => {
         items: makeItems(ITEM_A, ITEM_B, ITEM_C),
       });
 
-      ranker.addPreferences([pref(ITEM_A, ITEM_B, 1), pref(ITEM_B, ITEM_C, 1)]);
+      ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
+      ranker.addPreference(pref(ITEM_B, ITEM_C, 1));
 
       const rankings = ranker.run();
 
@@ -169,7 +174,8 @@ describe('PowerRanker (unidirectional flow)', () => {
       options: { k: K, flow: 'unidirectional' },
     });
 
-    ranker.addPreferences([pref(ITEM_A, ITEM_B, 1), pref(ITEM_B, ITEM_C, 1)]);
+    ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
+    ranker.addPreference(pref(ITEM_B, ITEM_C, 1));
 
     const rankings = ranker.run();
 
@@ -184,14 +190,16 @@ describe('PowerRanker (unidirectional flow)', () => {
       items: makeItems(ITEM_A, ITEM_B, ITEM_C),
       options: { k: K, flow: 'bidirectional' },
     });
-    biRanker.addPreferences([pref(ITEM_A, ITEM_B, 0.7), pref(ITEM_B, ITEM_C, 0.7)]);
+    biRanker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
+    biRanker.addPreference(pref(ITEM_B, ITEM_C, 0.7));
     const biRankings = biRanker.run();
 
     const uniRanker = new PowerRanker({
       items: makeItems(ITEM_A, ITEM_B, ITEM_C),
       options: { k: K, flow: 'unidirectional' },
     });
-    uniRanker.addPreferences([pref(ITEM_A, ITEM_B, 0.7), pref(ITEM_B, ITEM_C, 0.7)]);
+    uniRanker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
+    uniRanker.addPreference(pref(ITEM_B, ITEM_C, 0.7));
     const uniRankings = uniRanker.run();
 
     // The rankings should differ because unidirectional discards reverse flow
@@ -204,11 +212,9 @@ describe('PowerRanker (unidirectional flow)', () => {
       options: { k: K, flow: 'unidirectional' },
     });
 
-    ranker.addPreferences([
-      pref(ITEM_A, ITEM_B, 1),
-      pref(ITEM_B, ITEM_C, 1),
-      pref(ITEM_C, ITEM_A, 1),
-    ]);
+    ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
+    ranker.addPreference(pref(ITEM_B, ITEM_C, 1));
+    ranker.addPreference(pref(ITEM_C, ITEM_A, 1));
 
     const rankings = ranker.run();
 
@@ -258,7 +264,7 @@ describe('activeSelect', () => {
     });
 
     for (let i = 0; i < 10; i++) {
-      ranker.addPreferences([{ target: 'a', source: 'b', value: 1 }]);
+      ranker.addPreference({ target: 'a', source: 'b', value: 1 });
     }
 
     const pairs = ranker.activeSelect({ terms: ['coverage'] });
@@ -274,11 +280,9 @@ describe('activeSelect', () => {
       options: { k: K },
     });
 
-    ranker.addPreferences([
-      { target: 'a', source: 'b', value: 1 },
-      { target: 'b', source: 'c', value: 1 },
-      { target: 'c', source: 'd', value: 1 },
-    ]);
+    ranker.addPreference({ target: 'a', source: 'b', value: 1 });
+    ranker.addPreference({ target: 'b', source: 'c', value: 1 });
+    ranker.addPreference({ target: 'c', source: 'd', value: 1 });
 
     const pairs = ranker.activeSelect({ terms: ['proximity'] });
     const adjacent = pairs.find((p) => p.alpha === 'a' && p.beta === 'b')!;
@@ -293,11 +297,9 @@ describe('activeSelect', () => {
       options: { k: K },
     });
 
-    ranker.addPreferences([
-      { target: 'a', source: 'b', value: 1 },
-      { target: 'b', source: 'c', value: 1 },
-      { target: 'c', source: 'd', value: 1 },
-    ]);
+    ranker.addPreference({ target: 'a', source: 'b', value: 1 });
+    ranker.addPreference({ target: 'b', source: 'c', value: 1 });
+    ranker.addPreference({ target: 'c', source: 'd', value: 1 });
 
     const pairs = ranker.activeSelect({ terms: ['position'] });
     const top = pairs.find((p) => p.alpha === 'a' && p.beta === 'b')!;
@@ -313,7 +315,7 @@ describe('activeSelect', () => {
     });
 
     for (let i = 0; i < 10; i++) {
-      ranker.addPreferences([{ target: 'a', source: 'b', value: 1 }]);
+      ranker.addPreference({ target: 'a', source: 'b', value: 1 });
     }
 
     const pairs = ranker.activeSelect({ r: 0 });
@@ -329,7 +331,7 @@ describe('activeSelect', () => {
     });
 
     for (let i = 0; i < 10; i++) {
-      ranker.addPreferences([{ target: 'a', source: 'b', value: 1 }]);
+      ranker.addPreference({ target: 'a', source: 'b', value: 1 });
     }
 
     const fullPairs = ranker.activeSelect({ r: 1 });

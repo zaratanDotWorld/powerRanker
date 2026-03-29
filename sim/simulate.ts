@@ -183,7 +183,7 @@ export function runTrial(config: SimConfig, trialSeed: number): TrialResult {
         options: { k, flow: config.flow },
       });
       if (allPrefs.length > 0) {
-        ranker.addPreferences(allPrefs);
+        for (const p of allPrefs) ranker.addPreference(p);
       }
 
       // Select pairs
@@ -219,7 +219,7 @@ export function runTrial(config: SimConfig, trialSeed: number): TrialResult {
         items: new Set(itemIds),
         options: { k, flow: config.flow },
       });
-      measRanker.addPreferences(allPrefs);
+      for (const p of allPrefs) measRanker.addPreference(p);
 
       const totalVotes = allPrefs.length;
       const vpi = totalVotes / config.items;

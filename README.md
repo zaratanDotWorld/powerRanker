@@ -14,10 +14,8 @@ import { PowerRanker } from './src/index.js';
 const items = new Set(['a', 'b', 'c']);
 const ranker = new PowerRanker({ items, options: { k: 0.15 } });
 
-ranker.addPreferences([
-  { target: 'a', source: 'b', value: 1 },
-  { target: 'b', source: 'c', value: 1 },
-]);
+ranker.addPreference({ target: 'a', source: 'b', value: 1 });
+ranker.addPreference({ target: 'b', source: 'c', value: 1 });
 
 const rankings = ranker.run();
 // a -> 0.650, b -> 0.256, c -> 0.093

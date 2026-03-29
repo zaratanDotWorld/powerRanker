@@ -87,32 +87,27 @@ export class PowerRanker {
   }
 
   /**
-   * Add preferences to the matrix.
-   * We assume max one submission per participant/pair.
+   * Add a single preference to the matrix.
    */
-  addPreferences(preferences: Preference[]): void {
+  addPreference(p: Preference): void {
     const d = (this.matrix as unknown as { data: Float64Array[] }).data;
     const flow = this.options.flow ?? 'bidirectional';
 
-    for (const p of preferences) {
-      const targetIx = this.itemIndices[p.target];
-      const sourceIx = this.itemIndices[p.source];
-      if (targetIx === undefined || sourceIx === undefined) continue;
+    const targetIx = this.itemIndices[p.target];
+    const sourceIx = this.itemIndices[p.source];
+    if (targetIx === undefined || sourceIx === undefined) return;
 
-      this.itemObservations[p.target]++;
-      this.itemObservations[p.source]++;
+    this.itemObservations[p.target]++;
+    this.itemObservations[p.source]++;
 
-      if (flow === 'bidirectional') {
-        // Bidirectional: score s adds s toward target and (1-s) toward source
+    if (flow === 'bidirectional') {
+      d[sourceIx][targetIx] += p.value;
+      d[targetIx][sourceIx] += 1 - p.value;
+    } else {
+      if (p.value >= 0.5) {
         d[sourceIx][targetIx] += p.value;
-        d[targetIx][sourceIx] += 1 - p.value;
       } else {
-        // Unidirectional: only record the dominant preference direction
-        if (p.value >= 0.5) {
-          d[sourceIx][targetIx] += p.value;
-        } else {
-          d[targetIx][sourceIx] += (1 - p.value);
-        }
+        d[targetIx][sourceIx] += (1 - p.value);
       }
     }
   }
