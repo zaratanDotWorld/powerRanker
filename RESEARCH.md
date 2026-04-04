@@ -112,12 +112,15 @@ This is the natural unit for "how much data do we need?"
 
 ## Known Results
 
-See `sim/RESULTS.md` for detailed tables.
+See `sim/RESULTS.md` for detailed tables and `sim/RESEARCH_LOG.md` for experiment details.
 Summary:
 
 - **Ordinal accuracy** (Spearman) reaches 0.95 at ~12 vpi for steep distributions (alpha=1.5), ~24 vpi for medium (alpha=1.0)
+- **Unidirectional flow** outperforms bidirectional for ordinal accuracy (+0.03-0.06 at low vpi), because it naturally weights votes by information content
+- **Coverage + proximity** are the key active selection terms; position (top-bias) hurts at low vpi
 - **Cardinal accuracy** (spread ratio) is harder: Likert binning introduces systematic bias that more data cannot fix (Jensen's inequality)
-- **Active selection** converges faster than random pair selection
+- **Pseudocount C** has almost no effect on ordinal accuracy — it only controls spread ratio
+- **Likert granularity** (5, 7, 9-point) doesn't matter for ordinal accuracy
 - Steeper distributions (higher alpha) are easier to rank because quality gaps are larger
 
 ## Open Research Questions

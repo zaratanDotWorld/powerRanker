@@ -67,6 +67,7 @@ function parseArgs(): SimConfig {
     terms: (opts['select'] ?? 'coverage,proximity,position').split(',') as ActiveImpactTerm[],
     sigma: parseFloat(opts['sigma'] ?? '1'),
     scoring: 'continuous' in opts ? 'continuous' : 'likert',
+    likertPoints: opts['likert'] !== undefined ? parseInt(opts['likert']) : undefined,
     flow: (opts['flow'] ?? 'bidirectional') as FlowMode,
     strategy: (opts['strategy'] ?? 'activeSelect') as 'random' | 'activeSelect',
     seed: opts['seed'] !== undefined ? parseInt(opts['seed']) : undefined,
@@ -98,11 +99,13 @@ function gaussianVariate(rng: () => number): number {
 // noise to draw from N(log(wA/wB), σ²), then applies sigmoid to map back to
 // (0, 1). Equivalent to drawing the BT probability with noisy strength estimates.
 function drawScore(
-  wA: number, wB: number, sigma: number, continuous: boolean, rng: () => number
+  wA: number, wB: number, sigma: number, continuous: boolean, rng: () => number, likertPoints: number = 5
 ): number {
   const logOdds = Math.log(wA / wB) + gaussianVariate(rng) * sigma;
   const score = 1 / (1 + Math.exp(-logOdds));
-  return continuous ? score : Math.round(score * 4) / 4;
+  if (continuous) return score;
+  const bins = likertPoints - 1;
+  return Math.round(score * bins) / bins;
 }
 
 // ---------------------------------------------------------------------------
@@ -214,7 +217,7 @@ export function runTrial(config: SimConfig, trialSeed: number): TrialResult {
         const iB = parseInt(pair.beta.split('-')[1]);
         const score = drawScore(
           trueWeights[iA], trueWeights[iB],
-          config.sigma, config.scoring === 'continuous', rng,
+          config.sigma, config.scoring === 'continuous', rng, config.likertPoints,
         );
 
         allPrefs.push({ target: pair.alpha, source: pair.beta, value: score });

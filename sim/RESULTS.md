@@ -5,22 +5,24 @@ Results from simulation exploring how well the spectral ranker recovers true ite
 ## Setup
 
 - Items with power-law weights `w_i = ((i+1)/n)^alpha`, normalized.
-- Pairs selected via `activeSelect` with coverage, proximity, and position terms (r=0.9).
+- Pairs selected via `activeSelect` with configurable terms (r=0.9).
 - Votes drawn from Bradley-Terry with logit-normal noise: `score = sigmoid(log(wA/wB) + N(0, σ²))`, with optional Likert binning.
 - Prior: `k = C / n` with C=1.
 - Each trial runs judges x sessions x sessionSize votes.
 
 ## Algorithm
 
-**Bidirectional linear flow** with column-sum self-loops.
+Two flow modes are supported.
 
-Each vote with score s adds `s` flow toward the preferred item and `(1-s)` toward the other.
-Before row-normalization, each item's diagonal is set to its column sum (total incoming flow), which lets items retain weight proportional to how much others prefer them.
+**Bidirectional flow**: a vote with score s adds `s` flow toward the preferred item and `(1-s)` toward the other.
+Every vote contributes 1.0 total weight regardless of preference strength.
+Satisfies detailed balance: with exact BT probabilities, the stationary distribution is proportional to true weights.
 
-This satisfies detailed balance: with exact Bradley-Terry probabilities and no prior, the stationary distribution is provably proportional to true weights.
+**Unidirectional flow**: only records the dominant direction, scaled by `(s - 0.5) * 2`.
+A vote of 0.95 adds 0.9 flow; a vote of 0.55 adds 0.1 flow.
+This naturally weights votes by information content — strong preferences contribute more than weak ones.
 
-**Unidirectional flow** (original algorithm) only records the dominant direction: if value >= 0.5, flow goes toward the target; otherwise toward the source.
-This discards information from the non-dominant direction.
+Both use column-sum self-loops: each item's diagonal is set to its column sum (total incoming flow from others), then the matrix is row-normalized for power iteration.
 
 ## Noise Model
 
@@ -42,26 +44,56 @@ Three distribution shapes tested:
 - **alpha=1.0** (medium): true spread 30x.
 - **alpha=1.5** (steep): true spread 164x.
 
-### Ordinal accuracy (Spearman rank correlation)
+### Baseline (bidirectional + coverage,proximity,position)
+
+#### Ordinal accuracy (Spearman rank correlation)
 
 | vpi | alpha=0.5 | alpha=1.0 | alpha=1.5 |
 | --- | --------- | --------- | --------- |
-| 12  | 0.75      | 0.91      | 0.95      |
-| 24  | 0.85      | 0.95      | 0.98      |
-| 36  | 0.89      | 0.97      | 0.99      |
+| 12  | 0.74      | 0.90      | 0.95      |
+| 24  | 0.83      | 0.95      | 0.97      |
+| 36  | 0.89      | 0.97      | 0.98      |
 
-Ordering is reliable across all distribution shapes.
-Steeper distributions are easier to rank because the quality gaps between items are larger.
-
-### Cardinal accuracy (spread ratio: recovered/true, 1.0 = perfect)
+#### Cardinal accuracy (spread ratio: recovered/true, 1.0 = perfect)
 
 | vpi | alpha=0.5 | alpha=1.0 | alpha=1.5 |
 | --- | --------- | --------- | --------- |
-| 12  | 1.83x     | 1.10x     | 0.39x     |
-| 24  | 1.92x     | 1.44x     | 0.71x     |
+| 12  | 2.10x     | 1.21x     | 0.44x     |
+| 24  | 2.07x     | 1.52x     | 0.73x     |
 | 36  | 1.93x     | 1.62x     | 0.94x     |
 
-No single configuration recovers magnitudes for all distributions.
+### Optimized (unidirectional + coverage,proximity)
+
+#### Ordinal accuracy (Spearman rank correlation)
+
+| vpi | alpha=0.5 | alpha=1.0 | alpha=1.5 |
+| --- | --------- | --------- | --------- |
+| 12  | 0.80      | 0.92      | 0.95      |
+| 24  | 0.87      | 0.95      | 0.97      |
+| 36  | 0.91      | 0.97      | 0.98      |
+
+Improvement over baseline: **+0.06** at alpha=0.5/vpi=12 (the hardest, most data-constrained case), tapering to near-zero at high vpi with steep distributions.
+
+## Optimization Findings
+
+See `RESEARCH_LOG.md` for detailed experiment results.
+
+### What helps ordinal accuracy
+
+1. **Unidirectional flow** (+0.03 average).
+Natural information weighting: strong preferences contribute more flow, weak preferences near 0.5 contribute almost nothing.
+Bidirectional treats every vote equally, diluting signal.
+
+2. **Drop position term from active selection** (+0.01-0.02).
+Position (top-bias) concentrates data on already-well-ranked items, starving lower-ranked items of observations.
+Coverage + proximity is the best combination at low vpi.
+
+### What doesn't help
+
+- **Pseudocount C**: no effect on ordinal accuracy (varies <0.02 across 40x range of C).
+- **Finer Likert scales**: 5, 7, 9-point and continuous all produce equivalent Spearman.
+- **Active selection r**: values from 0.7 to 1.0 are essentially equivalent.
+- **Alternative self-loops**: rowsum and none lose 0.07-0.22 Spearman vs colsum.
 
 ## The Bias-Variance Dilemma
 
@@ -75,36 +107,22 @@ More votes reduce **variance** (ordering improves) but not **bias** (magnitudes 
 
 1. **Adaptive prior**: Could C be tuned based on observed vote density or spread?
 2. **Post-hoc parametric fitting**: Fit a power-law curve to recovered ordering to estimate true shape parameter.
-3. **Finer scoring granularity**: Would a 7- or 9-point scale improve magnitude recovery?
-4. **Hybrid scoring**: Coarse Likert for most pairs, fine-grained calibration comparisons for a few.
-5. **Confidence weighting**: Weight votes by judge consistency (internal transitivity).
-6. **Self-loop alternatives**: Column sums cause mild ordering inversions in sparse graphs (3 items, 2 votes).
-7. **Bidirectional vs unidirectional flow**: Systematic comparison of convergence rates and magnitude recovery.
+3. **Hybrid scoring**: Coarse Likert for most pairs, fine-grained calibration comparisons for a few.
+4. **Confidence weighting**: Weight votes by judge consistency (internal transitivity).
+5. **Adaptive selection**: Shift from coverage-heavy to proximity-heavy as data accumulates.
 
 ## Reproducing These Results
 
-All results generated with seed=42, 50 trials, 10 judges, 9 sessions, 12 votes per session.
+All results generated with seed=42, 50 trials, 10 judges, 12 votes per session.
+vpi=12 at sessions=3, vpi=24 at sessions=6, vpi=36 at sessions=9.
 
 ```bash
-npx tsx sim/simulate.ts --items 30 --alpha 0.5 --judges 10 --sessions 9 --ssize 12 --sigma 1 --prior 1 --trials 50 --seed 42
-npx tsx sim/simulate.ts --items 30 --alpha 1.0 --judges 10 --sessions 9 --ssize 12 --sigma 1 --prior 1 --trials 50 --seed 42
-npx tsx sim/simulate.ts --items 30 --alpha 1.5 --judges 10 --sessions 9 --ssize 12 --sigma 1 --prior 1 --trials 50 --seed 42
-```
+# Baseline (bidirectional + all terms)
+npx tsx sim/simulate.ts --items 30 --alpha 1.0 --judges 10 --sessions 3 --ssize 12 --sigma 1 --prior 1 --trials 50 --seed 42
 
-vpi=12 corresponds to session 30, vpi=24 to session 60, vpi=36 to session 90 in the convergence output.
+# Optimized (unidirectional + coverage,proximity)
+npx tsx sim/simulate.ts --items 30 --alpha 1.0 --judges 10 --sessions 3 --ssize 12 --sigma 1 --prior 1 --flow unidirectional --select "coverage,proximity" --trials 50 --seed 42
 
-```bash
-# Compare strategies
-npx tsx sim/simulate.ts --strategy random --items 30 --sigma 1 --seed 42
-npx tsx sim/simulate.ts --strategy activeSelect --items 30 --sigma 1 --seed 42
-
-# Compare flow modes
-npx tsx sim/simulate.ts --flow bidirectional --items 30 --sigma 1 --seed 42
-npx tsx sim/simulate.ts --flow unidirectional --items 30 --sigma 1 --seed 42
-
-# Parameter sweep (JSONL output)
-npx tsx sim/sweep.ts --config sweep.json
-
-# Fine-grained convergence (sessionSize=1)
-npx tsx sim/simulate.ts --items 10 --ssize 1 --sessions 30 --sigma 1 --seed 42
+# Full convergence curve (vpi 12→36)
+npx tsx sim/simulate.ts --items 30 --alpha 1.0 --judges 10 --sessions 9 --ssize 12 --sigma 1 --prior 1 --flow unidirectional --select "coverage,proximity" --trials 50 --seed 42
 ```

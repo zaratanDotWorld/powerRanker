@@ -17,6 +17,7 @@ export interface SimConfig {
   sessions: number;
   sessionSize: number;
   trials: number;
+  likertPoints?: number;
   seed?: number;
 }
 
