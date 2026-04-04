@@ -163,15 +163,52 @@ The optimal C for spread ratio depends on the true distribution shape, which is 
 Finer scales (7, 9-point) don't help either.
 The 5-point Likert is sufficient.
 
+## Phase 3: L2 Analysis
+
+The Phase 2 analysis focused on Spearman.
+Re-examining with L2 (weight recovery) reveals a critical trade-off.
+
+### Unidirectional improves Spearman but worsens L2
+
+At alpha=1.0, vpi=12:
+
+| Config | Spearman | L2 |
+|--------|----------|----|
+| bidir + all terms (baseline) | 0.899 | 0.068 |
+| bidir + cov,prox | 0.902 | **0.044** |
+| unidir + all terms | 0.907 | 0.185 |
+| unidir + cov,prox | 0.916 | 0.120 |
+
+Unidirectional nearly triples L2.
+Discarding reverse flow filters noise (helping ordering) but loses magnitude information.
+
+### Dropping position improves both metrics
+
+This is the key finding: bidir + coverage,proximity improves L2 by 35-45% over the baseline while also slightly improving Spearman.
+The position term was hurting both metrics.
+
+Full L2 comparison (bidir + cov,prox vs baseline):
+
+| α | vpi | Baseline L2 | Recommended L2 | Improvement |
+|---|-----|-------------|----------------|-------------|
+| 0.5 | 12 | 0.071 | 0.039 | -45% |
+| 0.5 | 24 | 0.056 | 0.027 | -52% |
+| 1.0 | 12 | 0.068 | 0.044 | -35% |
+| 1.0 | 24 | 0.050 | 0.034 | -32% |
+| 1.5 | 12 | 0.067 | 0.052 | -22% |
+| 1.5 | 24 | 0.049 | 0.041 | -16% |
+
 ## Recommendations
 
-For the goal of maximizing ordinal accuracy with minimal data:
+**For both ordering and magnitude recovery:**
+- **Bidirectional flow + coverage,proximity** (drop position)
+- This improves Spearman slightly and L2 substantially (up to 45% reduction)
 
-- **Switch default flow to unidirectional**
-- **Switch default active selection terms to coverage,proximity** (drop position)
-- Keep C=1, r=0.9, colsum self-loops, 5-point Likert
+**For ordering only (magnitudes don't matter):**
+- **Unidirectional flow + coverage,proximity**
+- Better Spearman (+0.06 at α=0.5/vpi=12) but ~2x worse L2
 
-These changes improve Spearman by +0.06 for flat distributions at vpi=12, with consistent improvements across all low-data regimes.
+**Keep as-is:** C=1, r=0.9, colsum self-loops, 5-point Likert.
 
 ## Reproduction
 
@@ -179,6 +216,9 @@ These changes improve Spearman by +0.06 for flat distributions at vpi=12, with c
 # Baseline
 npx tsx sim/simulate.ts --items 30 --alpha 1.0 --judges 10 --sessions 3 --ssize 12 --sigma 1 --prior 1 --trials 50 --seed 42
 
-# Recommended
+# Recommended (both metrics)
+npx tsx sim/simulate.ts --items 30 --alpha 1.0 --judges 10 --sessions 3 --ssize 12 --sigma 1 --prior 1 --select "coverage,proximity" --trials 50 --seed 42
+
+# Ordinal-only
 npx tsx sim/simulate.ts --items 30 --alpha 1.0 --judges 10 --sessions 3 --ssize 12 --sigma 1 --prior 1 --flow unidirectional --select "coverage,proximity" --trials 50 --seed 42
 ```

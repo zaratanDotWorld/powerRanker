@@ -46,49 +46,72 @@ Three distribution shapes tested:
 
 ### Baseline (bidirectional + coverage,proximity,position)
 
-#### Ordinal accuracy (Spearman rank correlation)
+#### Ordinal accuracy (Spearman) / Weight recovery (L2)
 
-| vpi | alpha=0.5 | alpha=1.0 | alpha=1.5 |
-| --- | --------- | --------- | --------- |
-| 12  | 0.74      | 0.90      | 0.95      |
-| 24  | 0.83      | 0.95      | 0.97      |
-| 36  | 0.89      | 0.97      | 0.98      |
+| vpi | α=0.5 Spearman | α=0.5 L2 | α=1.0 Spearman | α=1.0 L2 | α=1.5 Spearman | α=1.5 L2 |
+| --- | -------------- | --------- | -------------- | --------- | -------------- | --------- |
+| 12  | 0.74           | 0.071     | 0.90           | 0.068     | 0.95           | 0.067     |
+| 24  | 0.83           | 0.056     | 0.95           | 0.050     | 0.97           | 0.049     |
+| 36  | 0.89           | 0.044     | 0.97           | 0.038     | 0.98           | 0.037     |
 
-#### Cardinal accuracy (spread ratio: recovered/true, 1.0 = perfect)
+### Recommended (bidirectional + coverage,proximity)
 
-| vpi | alpha=0.5 | alpha=1.0 | alpha=1.5 |
-| --- | --------- | --------- | --------- |
-| 12  | 2.10x     | 1.21x     | 0.44x     |
-| 24  | 2.07x     | 1.52x     | 0.73x     |
-| 36  | 1.93x     | 1.62x     | 0.94x     |
+Dropping the position term improves both Spearman and L2 simultaneously.
 
-### Optimized (unidirectional + coverage,proximity)
+#### Ordinal accuracy (Spearman) / Weight recovery (L2)
 
-#### Ordinal accuracy (Spearman rank correlation)
+| vpi | α=0.5 Spearman | α=0.5 L2 | α=1.0 Spearman | α=1.0 L2 | α=1.5 Spearman | α=1.5 L2 |
+| --- | -------------- | --------- | -------------- | --------- | -------------- | --------- |
+| 12  | 0.76           | **0.039** | 0.90           | **0.044** | 0.94           | **0.052** |
+| 24  | 0.86           | **0.027** | 0.95           | **0.034** | 0.97           | **0.041** |
+| 36  | 0.89           | **0.023** | 0.96           | **0.029** | 0.98           | **0.036** |
 
-| vpi | alpha=0.5 | alpha=1.0 | alpha=1.5 |
-| --- | --------- | --------- | --------- |
-| 12  | 0.80      | 0.92      | 0.95      |
-| 24  | 0.87      | 0.95      | 0.97      |
-| 36  | 0.91      | 0.97      | 0.98      |
+Improvement over baseline at vpi=12: Spearman +0.02 (α=0.5), L2 **-45%** (α=0.5).
+L2 improves substantially across all regimes.
 
-Improvement over baseline: **+0.06** at alpha=0.5/vpi=12 (the hardest, most data-constrained case), tapering to near-zero at high vpi with steep distributions.
+### Ordinal-only: unidirectional + coverage,proximity
+
+If only ordering matters (not magnitudes), unidirectional flow adds further Spearman improvement at the cost of L2.
+
+| vpi | α=0.5 Spearman | α=0.5 L2 | α=1.0 Spearman | α=1.0 L2 |
+| --- | -------------- | --------- | -------------- | --------- |
+| 12  | **0.80**       | 0.112     | **0.92**       | 0.120     |
+| 24  | **0.87**       | 0.089     | **0.95**       | 0.107     |
+| 36  | **0.91**       | 0.080     | **0.97**       | 0.106     |
+
+## The Spearman/L2 Trade-off
+
+Unidirectional flow improves ordering but worsens weight recovery.
+The mechanism: discarding reverse flow filters noise (helping ordering) but throws away information (hurting magnitudes).
+
+At alpha=1.0, vpi=12:
+
+| Config | Spearman | L2 |
+|--------|----------|----|
+| bidir + all terms (baseline) | 0.899 | 0.068 |
+| bidir + cov,prox (**recommended**) | 0.902 | **0.044** |
+| unidir + all terms | 0.907 | 0.185 |
+| unidir + cov,prox (ordinal-only) | 0.916 | 0.120 |
+
+Dropping position is a free win (improves both metrics).
+Switching to unidirectional is a trade-off (better ordering, worse magnitudes).
 
 ## Optimization Findings
 
 See `RESEARCH_LOG.md` for detailed experiment results.
 
-### What helps ordinal accuracy
+### What helps both Spearman and L2
 
-1. **Unidirectional flow** (+0.03 average).
-Natural information weighting: strong preferences contribute more flow, weak preferences near 0.5 contribute almost nothing.
-Bidirectional treats every vote equally, diluting signal.
-
-2. **Drop position term from active selection** (+0.01-0.02).
+1. **Drop position term from active selection**.
 Position (top-bias) concentrates data on already-well-ranked items, starving lower-ranked items of observations.
-Coverage + proximity is the best combination at low vpi.
+Coverage + proximity is the best combination.
 
-### What doesn't help
+### What helps Spearman but hurts L2
+
+1. **Unidirectional flow** (+0.03 Spearman, but ~2x worse L2).
+Use only when ordering is the sole objective.
+
+### What doesn't help either metric
 
 - **Pseudocount C**: no effect on ordinal accuracy (varies <0.02 across 40x range of C).
 - **Finer Likert scales**: 5, 7, 9-point and continuous all produce equivalent Spearman.
@@ -120,9 +143,12 @@ vpi=12 at sessions=3, vpi=24 at sessions=6, vpi=36 at sessions=9.
 # Baseline (bidirectional + all terms)
 npx tsx sim/simulate.ts --items 30 --alpha 1.0 --judges 10 --sessions 3 --ssize 12 --sigma 1 --prior 1 --trials 50 --seed 42
 
-# Optimized (unidirectional + coverage,proximity)
+# Recommended (bidirectional + coverage,proximity)
+npx tsx sim/simulate.ts --items 30 --alpha 1.0 --judges 10 --sessions 3 --ssize 12 --sigma 1 --prior 1 --select "coverage,proximity" --trials 50 --seed 42
+
+# Ordinal-only (unidirectional + coverage,proximity)
 npx tsx sim/simulate.ts --items 30 --alpha 1.0 --judges 10 --sessions 3 --ssize 12 --sigma 1 --prior 1 --flow unidirectional --select "coverage,proximity" --trials 50 --seed 42
 
 # Full convergence curve (vpi 12→36)
-npx tsx sim/simulate.ts --items 30 --alpha 1.0 --judges 10 --sessions 9 --ssize 12 --sigma 1 --prior 1 --flow unidirectional --select "coverage,proximity" --trials 50 --seed 42
+npx tsx sim/simulate.ts --items 30 --alpha 1.0 --judges 10 --sessions 9 --ssize 12 --sigma 1 --prior 1 --select "coverage,proximity" --trials 50 --seed 42
 ```
