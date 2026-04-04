@@ -94,12 +94,14 @@ function gaussianVariate(rng: () => number): number {
   return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
 }
 
+// Logit-normal vote model: computes true log-odds log(wA/wB), adds Gaussian
+// noise to draw from N(log(wA/wB), σ²), then applies sigmoid to map back to
+// (0, 1). Equivalent to drawing the BT probability with noisy strength estimates.
 function drawScore(
   wA: number, wB: number, sigma: number, continuous: boolean, rng: () => number
 ): number {
-  const logOdds = Math.log(wA / wB);
-  const noisyLogOdds = sigma > 0 ? logOdds + gaussianVariate(rng) * sigma : logOdds;
-  const score = 1 / (1 + Math.exp(-noisyLogOdds));
+  const logOdds = Math.log(wA / wB) + gaussianVariate(rng) * sigma;
+  const score = 1 / (1 + Math.exp(-logOdds));
   return continuous ? score : Math.round(score * 4) / 4;
 }
 
