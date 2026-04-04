@@ -62,7 +62,7 @@ npx tsx sim/simulate.ts --items 20 --seed 42 --output json
 npx tsx sim/sweep.ts --config sweep.json
 ```
 
-See [docs/ANALYSIS.md](docs/ANALYSIS.md) for research results and methodology.
+See [sim/RESULTS.md](sim/RESULTS.md) for research results and methodology.
 
 ## Development
 

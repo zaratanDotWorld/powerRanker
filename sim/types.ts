@@ -6,7 +6,7 @@ export type Strategy = 'random' | 'activeSelect';
 export interface SimConfig {
   items: number;
   alpha: number;
-  noise: number;
+  sigma: number;
   scoring: ScoringMode;
   strategy: Strategy;
   flow: FlowMode;
@@ -56,7 +56,7 @@ export interface AggregatedResult {
 export interface SweepConfig {
   items: number[];
   alpha: number[];
-  noise: number[];
+  sigma: number[];
   scoring: ScoringMode[];
   strategies: Strategy[];
   flow: FlowMode[];

@@ -21,7 +21,7 @@ import type { ActiveImpactTerm } from '../src/index.js';
 const DEFAULT_SWEEP: SweepConfig = {
   items: [10, 20, 30],
   alpha: [0.5, 1.0, 1.5],
-  noise: [0.1, 0.3, 0.5],
+  sigma: [0.5, 1.0, 2.0],
   scoring: ['likert'],
   strategies: ['random', 'activeSelect'],
   flow: ['bidirectional'],
@@ -49,7 +49,7 @@ function generateConfigs(sweep: SweepConfig): SimConfig[] {
   const grid = cartesian([
     sweep.items,
     sweep.alpha,
-    sweep.noise,
+    sweep.sigma,
     sweep.scoring,
     sweep.strategies,
     sweep.flow,
@@ -63,7 +63,7 @@ function generateConfigs(sweep: SweepConfig): SimConfig[] {
   return grid.map((row) => ({
     items: row[0] as number,
     alpha: row[1] as number,
-    noise: row[2] as number,
+    sigma: row[2] as number,
     scoring: row[3] as 'likert' | 'continuous',
     strategy: row[4] as 'random' | 'activeSelect',
     flow: row[5] as 'bidirectional' | 'unidirectional',
@@ -153,7 +153,7 @@ for (let i = 0; i < configs.length; i++) {
   const line = {
     items: config.items,
     alpha: config.alpha,
-    noise: config.noise,
+    sigma: config.sigma,
     scoring: config.scoring,
     strategy: config.strategy,
     flow: config.flow,

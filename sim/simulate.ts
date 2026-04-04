@@ -14,7 +14,7 @@
  *   --prior <c>       Prior strength constant (default: 1)
  *   --r <r>           Active select power transform (default: 0.9)
  *   --select <terms>  Active select terms (default: coverage,proximity,position)
- *   --noise <n>       Vote noise amplitude (default: 0.3)
+ *   --sigma <s>       Logit-normal noise std dev (default: 1)
  *   --continuous      Use continuous BT scores instead of Likert
  *   --flow <mode>     Flow mode: bidirectional or unidirectional (default: bidirectional)
  *   --strategy <s>    Pair selection: random or activeSelect (default: activeSelect)
@@ -65,7 +65,7 @@ function parseArgs(): SimConfig {
     priorC: parseFloat(opts['prior'] ?? '1'),
     r: parseFloat(opts['r'] ?? '0.9'),
     terms: (opts['select'] ?? 'coverage,proximity,position').split(',') as ActiveImpactTerm[],
-    noise: parseFloat(opts['noise'] ?? '0.3'),
+    sigma: parseFloat(opts['sigma'] ?? '1'),
     scoring: 'continuous' in opts ? 'continuous' : 'likert',
     flow: (opts['flow'] ?? 'bidirectional') as FlowMode,
     strategy: (opts['strategy'] ?? 'activeSelect') as 'random' | 'activeSelect',
@@ -85,16 +85,22 @@ function generateTrueWeights(n: number, alpha: number): number[] {
 }
 
 // ---------------------------------------------------------------------------
-// Vote simulation
+// Vote simulation (logit-normal noise model)
 // ---------------------------------------------------------------------------
 
+function gaussianVariate(rng: () => number): number {
+  const u1 = rng();
+  const u2 = rng();
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+
 function drawScore(
-  wA: number, wB: number, noise: number, continuous: boolean, rng: () => number
+  wA: number, wB: number, sigma: number, continuous: boolean, rng: () => number
 ): number {
-  const pA = wA / (wA + wB);
-  const noisy = pA + (rng() - 0.5) * noise;
-  const clamped = Math.max(0, Math.min(1, noisy));
-  return continuous ? clamped : Math.round(clamped * 4) / 4;
+  const logOdds = Math.log(wA / wB);
+  const noisyLogOdds = sigma > 0 ? logOdds + gaussianVariate(rng) * sigma : logOdds;
+  const score = 1 / (1 + Math.exp(-noisyLogOdds));
+  return continuous ? score : Math.round(score * 4) / 4;
 }
 
 // ---------------------------------------------------------------------------
@@ -206,7 +212,7 @@ export function runTrial(config: SimConfig, trialSeed: number): TrialResult {
         const iB = parseInt(pair.beta.split('-')[1]);
         const score = drawScore(
           trueWeights[iA], trueWeights[iB],
-          config.noise, config.scoring === 'continuous', rng,
+          config.sigma, config.scoring === 'continuous', rng,
         );
 
         allPrefs.push({ target: pair.alpha, source: pair.beta, value: score });
@@ -304,7 +310,7 @@ function outputConsole(result: AggregatedResult) {
   if (config.strategy === 'activeSelect') {
     console.log(`  Active select: ${config.terms.join(', ')}  r=${config.r}`);
   }
-  console.log(`  Noise: ${config.noise}  Scoring: ${config.scoring}`);
+  console.log(`  Sigma: ${config.sigma}  Scoring: ${config.scoring}`);
   console.log(`  Trials: ${config.trials}  Seed: ${config.seed ?? 'random'}\n`);
 
   // Convergence curve
@@ -339,11 +345,11 @@ function outputJson(result: AggregatedResult) {
 
 function outputCsv(result: AggregatedResult) {
   const { config, convergenceCurve } = result;
-  const header = 'items,alpha,noise,scoring,strategy,flow,priorC,r,session,vpi,spearman,kendall,l2,pearson,spreadRatio,pairCoverage';
+  const header = 'items,alpha,sigma,scoring,strategy,flow,priorC,r,session,vpi,spearman,kendall,l2,pearson,spreadRatio,pairCoverage';
   console.log(header);
   for (const snap of convergenceCurve) {
     console.log(
-      `${config.items},${config.alpha},${config.noise},${config.scoring},` +
+      `${config.items},${config.alpha},${config.sigma},${config.scoring},` +
       `${config.strategy},${config.flow},${config.priorC},${config.r},` +
       `${snap.session},${snap.vpi.toFixed(2)},${snap.spearman.toFixed(4)},` +
       `${snap.kendall.toFixed(4)},${snap.l2.toFixed(6)},${snap.pearson.toFixed(4)},` +

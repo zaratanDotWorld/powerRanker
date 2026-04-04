@@ -102,7 +102,7 @@ Pairs are then sampled without replacement proportional to weight.
 
 The `sim/` directory provides tools for evaluating convergence:
 
-- `simulate.ts` -- runs trials with configurable items, judges, sessions, noise, scoring, flow mode, and pair selection strategy
+- `simulate.ts` -- runs trials with configurable items, judges, sessions, sigma (logit-normal noise), scoring, flow mode, and pair selection strategy
 - `sweep.ts` -- cartesian product of parameter arrays for systematic exploration
 - `metrics.ts` -- Spearman, Kendall tau, Pearson, L2 error, spread ratio, pair coverage
 - Seeded PRNG (mulberry32) for full reproducibility
@@ -112,10 +112,10 @@ This is the natural unit for "how much data do we need?"
 
 ## Known Results
 
-See `docs/ANALYSIS.md` for detailed tables.
+See `sim/RESULTS.md` for detailed tables.
 Summary:
 
-- **Ordinal accuracy** (Spearman) reaches 0.95+ at ~12 vpi for most distributions
+- **Ordinal accuracy** (Spearman) reaches 0.95 at ~12 vpi for steep distributions (alpha=1.5), ~24 vpi for medium (alpha=1.0)
 - **Cardinal accuracy** (spread ratio) is harder: Likert binning introduces systematic bias that more data cannot fix (Jensen's inequality)
 - **Active selection** converges faster than random pair selection
 - Steeper distributions (higher alpha) are easier to rank because quality gaps are larger
@@ -184,21 +184,21 @@ Summary:
 npx tsx sim/simulate.ts --items 20 --judges 10 --sessions 3 --ssize 10 --seed 42
 
 # Compare flow modes
-npx tsx sim/simulate.ts --flow bidirectional --items 20 --seed 42
-npx tsx sim/simulate.ts --flow unidirectional --items 20 --seed 42
+npx tsx sim/simulate.ts --flow bidirectional --items 20 --sigma 1 --seed 42
+npx tsx sim/simulate.ts --flow unidirectional --items 20 --sigma 1 --seed 42
 
 # Compare selection strategies
-npx tsx sim/simulate.ts --strategy random --items 20 --seed 42
-npx tsx sim/simulate.ts --strategy activeSelect --items 20 --seed 42
+npx tsx sim/simulate.ts --strategy random --items 20 --sigma 1 --seed 42
+npx tsx sim/simulate.ts --strategy activeSelect --items 20 --sigma 1 --seed 42
 
 # Parameter sweep
 npx tsx sim/sweep.ts --config sweep.json
 
 # JSON output for analysis
-npx tsx sim/simulate.ts --items 20 --seed 42 --output json
+npx tsx sim/simulate.ts --items 20 --sigma 1 --seed 42 --output json
 
 # Fine-grained convergence
-npx tsx sim/simulate.ts --items 10 --ssize 1 --sessions 30 --seed 42
+npx tsx sim/simulate.ts --items 10 --ssize 1 --sessions 30 --sigma 1 --seed 42
 ```
 
 ## Key References
