@@ -29,6 +29,8 @@ export interface SessionSnapshot {
   kendall: number;
   l1: number;
   l2: number;
+  l2_mle?: number;
+  l2_cr?: number;
   pearson: number;
   spreadRatio: number;
   pairCoverage: number;
@@ -51,6 +53,8 @@ export interface AggregatedResult {
     kendall: { mean: number; median: number };
     l1: { mean: number; median: number };
     l2: { mean: number; median: number };
+    l2_mle?: { mean: number; median: number };
+    l2_cr?: { mean: number };
     spreadRatio: { mean: number; median: number };
     pairCoverage: { mean: number };
   };

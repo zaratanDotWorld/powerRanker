@@ -31,7 +31,7 @@ export interface PairWeight {
   weight: number;
 }
 
-export type ActiveImpactTerm = 'coverage' | 'proximity' | 'position';
+export type ActiveImpactTerm = 'coverage' | 'proximity' | 'position' | 'fisher';
 
 export interface ActiveSelectOptions {
   num?: number;
@@ -189,6 +189,14 @@ export class PowerRanker {
         if (terms.includes('position')) {
           weight *= 1 / Math.sqrt(position[alpha] * position[beta]);
         }
+
+        if (terms.includes('fisher')) {
+          const wA = weights.get(alpha)!;
+          const wB = weights.get(beta)!;
+          const p = wA / (wA + wB);
+          weight *= p * (1 - p);  // Fisher info: maximized at p=0.5
+        }
+
 
         weight = Math.pow(weight, r);
 
