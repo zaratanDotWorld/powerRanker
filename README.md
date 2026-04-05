@@ -33,7 +33,7 @@ const rankings = ranker.run();
 // Select pairs for the next round of voting
 const pairs = ranker.activeSelect({
   num: 10,                                      // how many pairs
-  terms: ['coverage', 'proximity', 'position'],  // which signals to use
+  terms: ['coverage', 'proximity'],  // which signals to use
   r: 0.9,                                        // regularization (0=uniform, 1=full)
   exclude: alreadyJudgedPairs,                   // skip these
 });

@@ -154,7 +154,7 @@ export class PowerRanker {
   activeSelect({
     num,
     exclude,
-    terms = ['coverage', 'proximity', 'position'],
+    terms = ['coverage', 'proximity'],
     r = 1,
     rng = Math.random,
   }: ActiveSelectOptions = {}): PairWeight[] {

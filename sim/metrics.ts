@@ -52,6 +52,14 @@ export function weightError(truth: number[], recovered: number[]): number {
   return Math.sqrt(sumSq);
 }
 
+export function l1Error(truth: number[], recovered: number[]): number {
+  let sumAbs = 0;
+  for (let i = 0; i < truth.length; i++) {
+    sumAbs += Math.abs(truth[i] - recovered[i]);
+  }
+  return sumAbs;
+}
+
 export function spreadRatio(truth: number[], recovered: number[]): number {
   const trueSpread = Math.max(...truth) / Math.min(...truth);
   const recSpread = Math.max(...recovered) / Math.min(...recovered);

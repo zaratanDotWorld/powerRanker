@@ -27,6 +27,7 @@ export interface SessionSnapshot {
   totalVotes: number;
   spearman: number;
   kendall: number;
+  l1: number;
   l2: number;
   pearson: number;
   spreadRatio: number;
@@ -48,6 +49,7 @@ export interface AggregatedResult {
     pearson: { mean: number; median: number };
     spearman: { mean: number; median: number };
     kendall: { mean: number; median: number };
+    l1: { mean: number; median: number };
     l2: { mean: number; median: number };
     spreadRatio: { mean: number; median: number };
     pairCoverage: { mean: number };

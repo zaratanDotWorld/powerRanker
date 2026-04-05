@@ -73,7 +73,7 @@ function generateConfigs(sweep: SweepConfig): SimConfig[] {
     sessions: row[9] as number,
     sessionSize: row[10] as number,
     trials: sweep.trials,
-    terms: ['coverage', 'proximity', 'position'] as ActiveImpactTerm[],
+    terms: ['coverage', 'proximity'] as ActiveImpactTerm[],
     seed: sweep.seed,
   }));
 }
@@ -96,6 +96,7 @@ function aggregateTrials(config: SimConfig, trials: TrialResult[]): AggregatedRe
       totalVotes: Math.round(metrics.avg(snaps.map((s) => s.totalVotes))),
       spearman: metrics.avg(snaps.map((s) => s.spearman)),
       kendall: metrics.avg(snaps.map((s) => s.kendall)),
+      l1: metrics.avg(snaps.map((s) => s.l1)),
       l2: metrics.avg(snaps.map((s) => s.l2)),
       pearson: metrics.avg(snaps.map((s) => s.pearson)),
       spreadRatio: metrics.avg(snaps.map((s) => s.spreadRatio)),
@@ -112,6 +113,7 @@ function aggregateTrials(config: SimConfig, trials: TrialResult[]): AggregatedRe
       pearson: { mean: metrics.avg(finals.map((f) => f.pearson)), median: metrics.median(finals.map((f) => f.pearson)) },
       spearman: { mean: metrics.avg(finals.map((f) => f.spearman)), median: metrics.median(finals.map((f) => f.spearman)) },
       kendall: { mean: metrics.avg(finals.map((f) => f.kendall)), median: metrics.median(finals.map((f) => f.kendall)) },
+      l1: { mean: metrics.avg(finals.map((f) => f.l1)), median: metrics.median(finals.map((f) => f.l1)) },
       l2: { mean: metrics.avg(finals.map((f) => f.l2)), median: metrics.median(finals.map((f) => f.l2)) },
       spreadRatio: { mean: metrics.avg(finals.map((f) => f.spreadRatio)), median: metrics.median(finals.map((f) => f.spreadRatio)) },
       pairCoverage: { mean: metrics.avg(finals.map((f) => f.pairCoverage)) },

@@ -13,7 +13,7 @@
  *   --trials <t>      Number of simulation trials (default: 50)
  *   --prior <c>       Prior strength constant (default: 1)
  *   --r <r>           Active select power transform (default: 0.9)
- *   --select <terms>  Active select terms (default: coverage,proximity,position)
+ *   --select <terms>  Active select terms (default: coverage,proximity)
  *   --sigma <s>       Logit-normal noise std dev (default: 1)
  *   --continuous      Use continuous BT scores instead of Likert
  *   --flow <mode>     Flow mode: bidirectional or unidirectional (default: bidirectional)
@@ -64,7 +64,7 @@ function parseArgs(): SimConfig {
     trials: parseInt(opts['trials'] ?? '50'),
     priorC: parseFloat(opts['prior'] ?? '1'),
     r: parseFloat(opts['r'] ?? '0.9'),
-    terms: (opts['select'] ?? 'coverage,proximity,position').split(',') as ActiveImpactTerm[],
+    terms: (opts['select'] ?? 'coverage,proximity').split(',') as ActiveImpactTerm[],
     sigma: parseFloat(opts['sigma'] ?? '1'),
     scoring: 'continuous' in opts ? 'continuous' : 'likert',
     likertPoints: opts['likert'] !== undefined ? parseInt(opts['likert']) : undefined,
@@ -152,6 +152,7 @@ function measureAccuracy(
   return {
     spearman: metrics.spearman(trueWeights, recovered),
     kendall: metrics.kendallTau(trueWeights, recovered),
+    l1: metrics.l1Error(trueWeights, recovered),
     l2: metrics.weightError(trueWeights, recovered),
     pearson: metrics.pearson(trueWeights, recovered),
     spreadRatio: metrics.spreadRatio(trueWeights, recovered),
@@ -271,6 +272,7 @@ function aggregateTrials(config: SimConfig, trials: TrialResult[]): AggregatedRe
       totalVotes: Math.round(metrics.avg(snaps.map((s) => s.totalVotes))),
       spearman: metrics.avg(snaps.map((s) => s.spearman)),
       kendall: metrics.avg(snaps.map((s) => s.kendall)),
+      l1: metrics.avg(snaps.map((s) => s.l1)),
       l2: metrics.avg(snaps.map((s) => s.l2)),
       pearson: metrics.avg(snaps.map((s) => s.pearson)),
       spreadRatio: metrics.avg(snaps.map((s) => s.spreadRatio)),
@@ -288,6 +290,7 @@ function aggregateTrials(config: SimConfig, trials: TrialResult[]): AggregatedRe
       pearson: { mean: metrics.avg(finals.map((f) => f.pearson)), median: metrics.median(finals.map((f) => f.pearson)) },
       spearman: { mean: metrics.avg(finals.map((f) => f.spearman)), median: metrics.median(finals.map((f) => f.spearman)) },
       kendall: { mean: metrics.avg(finals.map((f) => f.kendall)), median: metrics.median(finals.map((f) => f.kendall)) },
+      l1: { mean: metrics.avg(finals.map((f) => f.l1)), median: metrics.median(finals.map((f) => f.l1)) },
       l2: { mean: metrics.avg(finals.map((f) => f.l2)), median: metrics.median(finals.map((f) => f.l2)) },
       spreadRatio: { mean: metrics.avg(finals.map((f) => f.spreadRatio)), median: metrics.median(finals.map((f) => f.spreadRatio)) },
       pairCoverage: { mean: metrics.avg(finals.map((f) => f.pairCoverage)) },
@@ -320,13 +323,14 @@ function outputConsole(result: AggregatedResult) {
 
   // Convergence curve
   console.log('  Convergence:');
-  console.log('  session  vpi     spearman  kendall   L2        spread    coverage');
+  console.log('  session  vpi     spearman  kendall   L1        L2        spread    coverage');
   for (const snap of convergenceCurve) {
     console.log(
       `  ${String(snap.session).padStart(7)}  ` +
       `${snap.vpi.toFixed(1).padStart(5)}  ` +
       `${snap.spearman.toFixed(3).padStart(8)}  ` +
       `${snap.kendall.toFixed(3).padStart(7)}  ` +
+      `${snap.l1.toFixed(4).padStart(8)}  ` +
       `${snap.l2.toFixed(4).padStart(8)}  ` +
       `${snap.spreadRatio.toFixed(2).padStart(8)}x ` +
       `${(snap.pairCoverage * 100).toFixed(0).padStart(6)}%`
@@ -338,6 +342,7 @@ function outputConsole(result: AggregatedResult) {
     `  pearson=${final.pearson.mean.toFixed(3)}  ` +
     `spearman=${final.spearman.mean.toFixed(3)}  ` +
     `kendall=${final.kendall.mean.toFixed(3)}  ` +
+    `L1=${final.l1.mean.toFixed(4)}  ` +
     `L2=${final.l2.mean.toFixed(4)}  ` +
     `spread=${final.spreadRatio.mean.toFixed(2)}x  ` +
     `coverage=${(final.pairCoverage.mean * 100).toFixed(0)}%`
@@ -350,14 +355,14 @@ function outputJson(result: AggregatedResult) {
 
 function outputCsv(result: AggregatedResult) {
   const { config, convergenceCurve } = result;
-  const header = 'items,alpha,sigma,scoring,strategy,flow,priorC,r,session,vpi,spearman,kendall,l2,pearson,spreadRatio,pairCoverage';
+  const header = 'items,alpha,sigma,scoring,strategy,flow,priorC,r,session,vpi,spearman,kendall,l1,l2,pearson,spreadRatio,pairCoverage';
   console.log(header);
   for (const snap of convergenceCurve) {
     console.log(
       `${config.items},${config.alpha},${config.sigma},${config.scoring},` +
       `${config.strategy},${config.flow},${config.priorC},${config.r},` +
       `${snap.session},${snap.vpi.toFixed(2)},${snap.spearman.toFixed(4)},` +
-      `${snap.kendall.toFixed(4)},${snap.l2.toFixed(6)},${snap.pearson.toFixed(4)},` +
+      `${snap.kendall.toFixed(4)},${snap.l1.toFixed(6)},${snap.l2.toFixed(6)},${snap.pearson.toFixed(4)},` +
       `${snap.spreadRatio.toFixed(4)},${snap.pairCoverage.toFixed(4)}`
     );
   }
