@@ -2,6 +2,7 @@ import type { ActiveImpactTerm, FlowMode } from '../src/index.js';
 
 export type ScoringMode = 'likert' | 'continuous';
 export type Strategy = 'random' | 'activeSelect';
+export type PriorMode = 'fixed' | 'anneal';
 
 export interface SimConfig {
   items: number;
@@ -17,6 +18,7 @@ export interface SimConfig {
   sessions: number;
   sessionSize: number;
   trials: number;
+  priorMode: PriorMode;
   likertPoints?: number;
   seed?: number;
 }

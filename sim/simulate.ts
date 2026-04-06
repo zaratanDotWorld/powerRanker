@@ -18,13 +18,14 @@
  *   --continuous      Use continuous BT scores instead of Likert
  *   --flow <mode>     Flow mode: bidirectional or unidirectional (default: bidirectional)
  *   --strategy <s>    Pair selection: random or activeSelect (default: activeSelect)
+ *   --prior-mode <m>  Prior mode: fixed, anneal, dataScaled (default: fixed)
  *   --seed <n>        Random seed for reproducibility
  *   --output <fmt>    Output format: console, json, csv (default: console)
  */
 
 import { PowerRanker, pairKey } from '../src/index.js';
 import type { ActiveImpactTerm, FlowMode } from '../src/index.js';
-import type { SimConfig, SessionSnapshot, TrialResult, AggregatedResult } from './types.js';
+import type { SimConfig, SessionSnapshot, TrialResult, AggregatedResult, PriorMode } from './types.js';
 import * as metrics from './metrics.js';
 import { bradleyTerryMLE, cramerRaoBound } from './mle.js';
 
@@ -67,10 +68,11 @@ function parseArgs(): SimConfig {
     r: parseFloat(opts['r'] ?? '0.9'),
     terms: (opts['select'] ?? 'coverage,proximity').split(',') as ActiveImpactTerm[],
     sigma: parseFloat(opts['sigma'] ?? '1'),
-    scoring: 'continuous' in opts ? 'continuous' : 'likert',
+    scoring: (opts['scoring'] === 'continuous' || 'continuous' in opts) ? 'continuous' : 'likert',
     likertPoints: opts['likert'] !== undefined ? parseInt(opts['likert']) : undefined,
     flow: (opts['flow'] ?? 'bidirectional') as FlowMode,
     strategy: (opts['strategy'] ?? 'activeSelect') as 'random' | 'activeSelect',
+    priorMode: (opts['prior-mode'] ?? 'fixed') as PriorMode,
     seed: opts['seed'] !== undefined ? parseInt(opts['seed']) : undefined,
   };
 }
@@ -174,6 +176,27 @@ function measureAccuracy(
 }
 
 // ---------------------------------------------------------------------------
+// Adaptive prior
+// ---------------------------------------------------------------------------
+
+function computeK(
+  config: SimConfig,
+  allPrefs: { target: string; source: string; value: number }[],
+): number {
+  const N = config.items;
+  const baseK = config.priorC / N;
+
+  if (config.priorMode === 'fixed') return baseK;
+
+  // anneal: prior fades as 1/sqrt(1 + vpi).
+  // At vpi=0, k=baseK. At vpi=12, k≈baseK/3.6.
+  const totalVotes = allPrefs.length;
+  if (totalVotes === 0) return baseK;
+  const vpi = totalVotes / N;
+  return baseK / Math.sqrt(1 + vpi);
+}
+
+// ---------------------------------------------------------------------------
 // Simulation engine
 // ---------------------------------------------------------------------------
 
@@ -202,7 +225,7 @@ export function runTrial(config: SimConfig, trialSeed: number): TrialResult {
       sessionCount++;
 
       // Build ranker with current data
-      const k = config.priorC / config.items;
+      const k = computeK(config, allPrefs);
       const ranker = new PowerRanker({
         items: new Set(itemIds),
         options: { k, flow: config.flow },
@@ -240,9 +263,10 @@ export function runTrial(config: SimConfig, trialSeed: number): TrialResult {
       }
 
       // Measure at this session boundary
+      const measK = computeK(config, allPrefs);
       const measRanker = new PowerRanker({
         items: new Set(itemIds),
-        options: { k, flow: config.flow },
+        options: { k: measK, flow: config.flow },
       });
       for (const p of allPrefs) measRanker.addPreference(p);
 
@@ -335,7 +359,7 @@ function outputConsole(result: AggregatedResult) {
   console.log(`  Items: ${config.items}  Alpha: ${config.alpha}  True spread: ${trueSpread.toFixed(1)}x`);
   console.log(`  Judges: ${config.judges}  Sessions: ${config.sessions}  Session size: ${config.sessionSize}  Total votes: ${totalVotes}`);
   console.log(`  Votes per item (avg): ${vpi.toFixed(1)}`);
-  console.log(`  Prior: C=${config.priorC}  k=${(config.priorC / config.items).toFixed(4)}`);
+  console.log(`  Prior: C=${config.priorC}  k=${(config.priorC / config.items).toFixed(4)}  mode=${config.priorMode}`);
   console.log(`  Strategy: ${config.strategy}  Flow: ${config.flow}`);
   if (config.strategy === 'activeSelect') {
     console.log(`  Active select: ${config.terms.join(', ')}  r=${config.r}`);

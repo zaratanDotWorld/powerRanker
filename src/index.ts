@@ -1,6 +1,7 @@
 export { PowerRanker, pairKey } from './PowerRanker.js';
 export type {
   FlowMode,
+  Normalization,
   PowerRankerOptions,
   Preference,
   DirectedEdge,

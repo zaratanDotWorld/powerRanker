@@ -1,10 +1,12 @@
 import { Matrix } from 'ml-matrix';
 
 export type FlowMode = 'bidirectional' | 'unidirectional';
+export type Normalization = 'flow' | 'rankCentrality';
 
 export interface PowerRankerOptions {
   k?: number;
   flow?: FlowMode;
+  normalization?: Normalization;
   verbose?: boolean;
 }
 
@@ -106,7 +108,6 @@ export class PowerRanker {
     } else {
       // Scale so 0.5 -> 0, 0.7 -> 0.4, etc.
       const scaled = (p.value - 0.5) * 2;
-
       if (scaled > 0) {
         d[sourceIx][targetIx] += scaled;
       } else {
@@ -238,19 +239,50 @@ export class PowerRanker {
     const n = this.items.length;
     const mat = this.matrix.clone();
 
-    // Set diagonals to column sums
-    const colSums = mat.sum('column');
-    for (let i = 0; i < n; i++) {
-      mat.set(i, i, colSums[i] - mat.get(i, i));
-    }
+    if (this.options.normalization === 'rankCentrality') {
+      // Rank centrality: per-pair win fractions divided by d_max.
+      // Eliminates degree-dependent bias on incomplete graphs.
+      const degree = Array(n).fill(0);
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          if (mat.get(i, j) + mat.get(j, i) > 0) {
+            degree[i]++;
+            degree[j]++;
+          }
+        }
+      }
+      const dMax = Math.max(...degree);
 
-    // Row-normalize
-    const rowSums = mat.sum('row');
-    for (let i = 0; i < n; i++) {
-      if (rowSums[i] > 0) {
-        mat.setRow(i, mat.getRow(i).map((v) => v / rowSums[i]));
-      } else {
-        mat.setRow(i, Array(n).fill(1 / n));
+      const T = Matrix.zeros(n, n);
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          const total = mat.get(i, j) + mat.get(j, i);
+          if (total > 0) {
+            T.set(i, j, (mat.get(i, j) / total) / dMax);
+            T.set(j, i, (mat.get(j, i) / total) / dMax);
+          }
+        }
+      }
+      for (let i = 0; i < n; i++) {
+        let offDiag = 0;
+        for (let j = 0; j < n; j++) if (j !== i) offDiag += T.get(i, j);
+        T.set(i, i, 1 - offDiag);
+      }
+      mat.setSubMatrix(T.to2DArray(), 0, 0);
+    } else {
+      // Default flow normalization: diagonal = column sums, then row-normalize.
+      const colSums = mat.sum('column');
+      for (let i = 0; i < n; i++) {
+        mat.set(i, i, colSums[i] - mat.get(i, i));
+      }
+
+      const rowSums = mat.sum('row');
+      for (let i = 0; i < n; i++) {
+        if (rowSums[i] > 0) {
+          mat.setRow(i, mat.getRow(i).map((v) => v / rowSums[i]));
+        } else {
+          mat.setRow(i, Array(n).fill(1 / n));
+        }
       }
     }
 
