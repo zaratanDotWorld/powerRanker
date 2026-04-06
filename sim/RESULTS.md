@@ -22,7 +22,14 @@ Satisfies detailed balance: with exact BT probabilities, the stationary distribu
 A vote of 0.95 adds 0.9 flow; a vote of 0.55 adds 0.1 flow.
 This naturally weights votes by information content — strong preferences contribute more than weak ones.
 
-Both use column-sum self-loops: each item's diagonal is set to its column sum (total incoming flow from others), then the matrix is row-normalized for power iteration.
+Two normalization modes are supported.
+
+**Flow normalization** (default): each item's diagonal is set to its column sum (total incoming flow from others), then the matrix is row-normalized for power iteration.
+On incomplete graphs, this inflates weights for high-degree nodes — a structural bias that does not diminish with more data.
+
+**Rank centrality normalization**: each pair's flow is normalized to a win fraction, divided by d_max (maximum node degree), with diagonal set to the residual (1 - off-diagonal sum).
+Eliminates degree-dependent bias on incomplete graphs.
+Matches MLE accuracy across all coverage levels.
 
 ## Noise Model
 
@@ -118,6 +125,41 @@ Use only when ordering is the sole objective.
 - **Active selection r**: values from 0.7 to 1.0 are essentially equivalent.
 - **Alternative self-loops**: rowsum and none lose 0.07-0.22 Spearman vs colsum.
 
+## Rank Centrality Results
+
+Rank centrality eliminates spectral's degree-dependent bias on incomplete graphs.
+With bidirectional flow and k=0, it matches MLE accuracy.
+
+### RMSE comparison (N=30, α=1.0, σ=0.15, Likert, random selection, 10 trials)
+
+| VPI | Flow | Rank Centrality | MLE |
+|-----|------|-----------------|-----|
+| 5 | 0.0113 | **0.0039** | 0.0041 |
+| 10 | 0.0084 | **0.0031** | 0.0029 |
+| 20 | 0.0062 | **0.0026** | 0.0023 |
+
+### Scaling (α=1.0, σ=0.15, VPI=5, random selection)
+
+| N | Coverage | Flow | RC | MLE |
+|---|----------|------|-----|-----|
+| 30 | 34.5% | 0.0116 | 0.0042 | 0.0041 |
+| 100 | 10.1% | 0.0039 | 0.0016 | 0.0017 |
+| 200 | 5.0% | 0.0018 | 0.0008 | 0.0008 |
+| 500 | 2.0% | 0.0007 | 0.0004 | 0.0036 |
+
+RC is 2-4x better than flow at every scale.
+At very sparse coverage (2%), RC beats MLE (MLE's optimizer becomes unstable).
+
+### Active selection is redundant with rank centrality
+
+| VPI | Random+RC | Active+RC |
+|-----|-----------|-----------|
+| 5 | 0.0039 | 0.0042 |
+| 10 | 0.0031 | 0.0030 |
+
+Active selection was primarily compensating for flow normalization's degree bias.
+With the bias eliminated, random selection is sufficient.
+
 ## The Bias-Variance Dilemma
 
 With Likert binning, you can recover **ordering** but not **exact magnitudes**, and more data does not fix this.
@@ -128,11 +170,11 @@ More votes reduce **variance** (ordering improves) but not **bias** (magnitudes 
 
 ## Open Research Questions
 
-1. **Adaptive prior**: Could C be tuned based on observed vote density or spread?
-2. **Post-hoc parametric fitting**: Fit a power-law curve to recovered ordering to estimate true shape parameter.
-3. **Hybrid scoring**: Coarse Likert for most pairs, fine-grained calibration comparisons for a few.
-4. **Confidence weighting**: Weight votes by judge consistency (internal transitivity).
-5. **Adaptive selection**: Shift from coverage-heavy to proximity-heavy as data accumulates.
+1. **Aggregation degree bias**: Flow normalization introduces degree-dependent distortion in the aggregation use case, but rank centrality discards vote accumulation (the core signal). No clean resolution yet.
+2. **Aggregation responsiveness**: With sparse intentional voting, the system can feel too responsive (single vote swings weights) or not responsive enough (high prior masks votes). Optimal prior tuning for small groups is an open question.
+3. **Post-hoc parametric fitting**: Fit a power-law curve to recovered ordering to estimate true shape parameter.
+4. **Hybrid scoring**: Coarse Likert for most pairs, fine-grained calibration comparisons for a few.
+5. **Confidence weighting**: Weight votes by judge consistency (internal transitivity).
 
 ## Reproducing These Results
 

@@ -2,8 +2,8 @@
  * Generate RMSE and Spearman data for spectral (activeSelect) vs MLE (random)
  * across VPI levels. Outputs CSV to stdout.
  */
-import { PowerRanker, pairKey } from '../src/index.js';
-import { bradleyTerryMLE } from './mle.js';
+import { PowerRanker, pairKey } from '../../src/index.js';
+import { bradleyTerryMLE } from '../mle.js';
 
 function mulberry32(seed: number): () => number {
   let t = seed >>> 0;

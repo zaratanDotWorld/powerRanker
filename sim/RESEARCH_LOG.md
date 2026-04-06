@@ -817,6 +817,120 @@ It eliminates structural degree bias with no meaningful downside.
 Random selection is sufficient for cardinal accuracy.
 4. **MLE remains slightly better at moderate-high coverage** but RC is more robust at the extremes.
 
+## Historical Notes: Spectral vs MLE for Pairwise Ranking
+
+### Timeline
+
+- **1929**: Zermelo describes the paired comparison model and iterative fitting — essentially Bradley-Terry MLE avant la lettre.
+- **1952**: Bradley and Terry formalize the model and maximum likelihood estimation.
+- **1969**: Daniels applies eigenvector methods to tournament ranking.
+- **1993**: Keener develops spectral ranking for sports tournaments.
+- **1998**: Page and Brin publish PageRank, popularizing the "build a transition matrix, find the stationary distribution" approach.
+- **2004**: Hunter formalizes the MM (minorization-maximization) algorithm for BT-MLE.
+- **2012/2017**: Negahban, Oh, and Shah publish rank centrality — a spectral method designed for incomplete comparison graphs, with consistency guarantees.
+
+MLE had a ~40 year head start on spectral methods for this problem.
+Spectral methods became popular despite MLE existing because they were simpler to implement and reason about.
+
+### Why spectral methods were adopted despite MLE existing
+
+1. **Computation.** Power iteration is trivial: multiply a vector by a matrix, repeat.
+BT-MLE requires iterative optimization.
+On 1970s hardware with a 32-team tournament, the matrix approach was the obvious choice.
+
+2. **No model assumption.** Spectral methods are model-free.
+BT-MLE assumes preferences follow a logistic model.
+If that model is wrong (non-transitive preferences, context-dependent performance), MLE gives confidently wrong answers.
+
+3. **On complete graphs, it didn't matter.** Round-robin tournaments have complete pair coverage.
+Spectral and MLE converge in this setting, so the more complex method provided no benefit.
+
+4. **Academic silos.** Spectral ranking came from linear algebra / Markov chain theory.
+BT-MLE came from statistics.
+Different journals, different conferences, different toolkits.
+
+### Why rank centrality wasn't the default spectral formulation
+
+1. **PageRank's influence.** In web search, the link graph IS the data.
+Degree inflation is the signal, not a bug — a page with many inlinks is important because many pages link to it.
+There are no latent weights to recover.
+
+2. **Tournament ranking assumed complete coverage.** Classical spectral ranking was developed for round-robin settings where all degrees are equal.
+The bias only appears on incomplete graphs, which wasn't the motivating problem.
+
+3. **Rank centrality is recent.** Published 15+ years after PageRank had established the "flow normalization" template as the default mental model for spectral ranking.
+
+### The key distinction
+
+PageRank and pairwise ranking are fundamentally different problems:
+- **PageRank**: the graph IS the data. No latent parameters. Degree is meaningful.
+- **Pairwise ranking**: the graph is a sampling artifact. Latent quality scores exist. Degree is noise.
+
+Applying the PageRank template to pairwise ranking inherits a bias that was a feature in the original context.
+
+## Two Problem Settings: Estimation vs Aggregation
+
+The research above focuses on **estimation**: recovering latent true weights from noisy pairwise observations.
+But PowerRanker also serves an **aggregation** use case, which has fundamentally different requirements.
+
+### Estimation (e.g., judges scoring items)
+
+- Latent true weights exist.
+- Votes are noisy measurements of those weights.
+- Goal: converge to truth with minimal error.
+- Graph structure is a sampling artifact — degree is noise.
+- Recommended: **bidirectional + rank centrality**.
+
+### Aggregation (e.g., a coliving house prioritizing chores)
+
+- No ground truth.
+Weights are whatever the group collectively decides through their votes.
+- Voting is intentional and corrective — people vote only when they feel something is mispriced.
+- A vote is a durable preference statement, not a time-sensitive measurement.
+No decay: "Dishes > Trash" persists unless explicitly changed.
+- The group should be able to band together — more people voting the same direction should have a larger effect.
+- Continuous preference strength matters (not just direction).
+- Recommended: **unidirectional + flow**.
+
+### Why unidirectional for aggregation
+
+A vote of "Dishes > Trash" is a directional correction.
+There should be no implicit counter-flow toward Trash.
+Bidirectional encoding inflates the "loser" of each comparison, which is wrong when votes are intentional statements of relative priority.
+Unidirectional's 0.5 → 0 scaling is correct: an "equal" vote carries no directional information and should be a no-op.
+
+### Why flow (not RC) for aggregation
+
+Rank centrality normalizes each pair to a win fraction, discarding observation counts.
+In aggregation, observation count IS the signal: 10 people voting "Dishes > Trash" should move the allocation more than 1 person voting.
+The flow model preserves vote accumulation — more votes = more influence.
+
+### The open tension: degree bias in aggregation
+
+The flow model's degree-dependent distortion is still present in the aggregation case.
+An item compared against many other items gets inflated weight independent of the direction of those comparisons — a graph topology artifact, not a reflection of group preference.
+
+This is a genuine design tension with no clean resolution yet:
+- Flow preserves vote accumulation and directionality (properties 1-3) but introduces degree bias.
+- RC eliminates degree bias but discards accumulation.
+- Degree-corrected self-loops (diag/degree) partially help but don't eliminate the bias.
+
+### The responsiveness question
+
+In practice, the aggregation system has sometimes felt:
+- **Too responsive**: a single vote swings weights dramatically (sparse graph, low prior).
+- **Not responsive enough**: votes seem to have little effect (high prior, or many existing votes dominating).
+
+The prior k controls the inertia/responsiveness tradeoff.
+In a small group (6 people, 15 chores), the comparison graph is very sparse — most pairs have 0 or 1 votes.
+A single vote can dominate a pair's flow (volatile), but a high prior makes votes feel ineffective.
+
+Natural stabilization may come from accumulation itself: as more votes exist, each new vote is a smaller fraction of total flow.
+This suggests a low prior with stability emerging from the voting history, rather than imposed artificially.
+The anneal prior mode (prior fades as data grows) may be counterproductive in this case — the opposite dynamic is wanted.
+
+This remains an open design question.
+
 ## Reproduction
 
 ```bash

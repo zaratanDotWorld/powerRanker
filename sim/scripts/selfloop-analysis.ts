@@ -7,7 +7,7 @@
  * This script tests with controlled conditions to isolate the bias source.
  */
 
-import { PowerRanker } from '../src/index.js';
+import { PowerRanker } from '../../src/index.js';
 import * as metrics from './metrics.js';
 
 function generateTrueWeights(n: number, alpha: number): number[] {
