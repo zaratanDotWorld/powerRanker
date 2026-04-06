@@ -1,25 +1,7 @@
 import { describe, test, expect } from '@jest/globals';
-import { pearson, spearman, kendallTau, weightError, spreadRatio, rankArray } from './metrics.js';
+import { spearman, weightError, l1Error, rmse, rankArray } from './metrics.js';
 
 describe('metrics', () => {
-  describe('pearson', () => {
-    test('perfect positive correlation', () => {
-      expect(pearson([1, 2, 3], [2, 4, 6])).toBeCloseTo(1);
-    });
-
-    test('perfect negative correlation', () => {
-      expect(pearson([1, 2, 3], [6, 4, 2])).toBeCloseTo(-1);
-    });
-
-    test('no correlation', () => {
-      expect(pearson([1, 2, 3], [1, 3, 2])).toBeCloseTo(0.5);
-    });
-
-    test('identical arrays', () => {
-      expect(pearson([5, 5, 5], [5, 5, 5])).toBeCloseTo(0);
-    });
-  });
-
   describe('rankArray', () => {
     test('assigns ranks by descending value', () => {
       expect(rankArray([10, 30, 20])).toEqual([3, 1, 2]);
@@ -42,23 +24,7 @@ describe('metrics', () => {
     });
   });
 
-  describe('kendallTau', () => {
-    test('perfect concordance', () => {
-      expect(kendallTau([1, 2, 3, 4], [10, 20, 30, 40])).toBeCloseTo(1);
-    });
-
-    test('perfect discordance', () => {
-      expect(kendallTau([1, 2, 3, 4], [40, 30, 20, 10])).toBeCloseTo(-1);
-    });
-
-    test('one swap from perfect', () => {
-      // [1,2,3,4] vs [1,3,2,4]: one discordant pair (2,3)
-      // concordant=5, discordant=1, tau = 4/6 = 2/3
-      expect(kendallTau([1, 2, 3, 4], [1, 3, 2, 4])).toBeCloseTo(2 / 3);
-    });
-  });
-
-  describe('weightError', () => {
+  describe('weightError (L2)', () => {
     test('identical vectors', () => {
       expect(weightError([0.5, 0.3, 0.2], [0.5, 0.3, 0.2])).toBeCloseTo(0);
     });
@@ -68,14 +34,31 @@ describe('metrics', () => {
     });
   });
 
-  describe('spreadRatio', () => {
-    test('identical spread', () => {
-      expect(spreadRatio([1, 2, 4], [2, 4, 8])).toBeCloseTo(1);
+  describe('l1Error', () => {
+    test('identical vectors', () => {
+      expect(l1Error([0.5, 0.3, 0.2], [0.5, 0.3, 0.2])).toBeCloseTo(0);
     });
 
-    test('double spread', () => {
-      // truth spread = 4/1 = 4, recovered spread = 16/1 = 16, ratio = 4
-      expect(spreadRatio([1, 2, 4], [1, 4, 16])).toBeCloseTo(4);
+    test('known L1 distance', () => {
+      expect(l1Error([1, 0, 0], [0, 1, 0])).toBeCloseTo(2);
+    });
+  });
+
+  describe('rmse', () => {
+    test('identical vectors', () => {
+      expect(rmse([0.5, 0.3, 0.2], [0.5, 0.3, 0.2])).toBeCloseTo(0);
+    });
+
+    test('known RMSE', () => {
+      // errors: [1, -1, 0], sumSq = 2, RMSE = sqrt(2/3)
+      expect(rmse([1, 0, 0], [0, 1, 0])).toBeCloseTo(Math.sqrt(2 / 3));
+    });
+
+    test('RMSE equals L2 / sqrt(n)', () => {
+      const a = [0.5, 0.3, 0.2];
+      const b = [0.4, 0.35, 0.25];
+      const l2 = weightError(a, b);
+      expect(rmse(a, b)).toBeCloseTo(l2 / Math.sqrt(a.length));
     });
   });
 });

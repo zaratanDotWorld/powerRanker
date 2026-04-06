@@ -1,16 +1,3 @@
-export function pearson(a: number[], b: number[]): number {
-  const n = a.length;
-  const meanA = a.reduce((s, v) => s + v, 0) / n;
-  const meanB = b.reduce((s, v) => s + v, 0) / n;
-  let num = 0, dA = 0, dB = 0;
-  for (let i = 0; i < n; i++) {
-    num += (a[i] - meanA) * (b[i] - meanB);
-    dA += (a[i] - meanA) ** 2;
-    dB += (b[i] - meanB) ** 2;
-  }
-  return dA > 0 && dB > 0 ? num / Math.sqrt(dA * dB) : 0;
-}
-
 export function rankArray(arr: number[]): number[] {
   const sorted = arr.map((v, i) => ({ v, i })).sort((a, b) => b.v - a.v);
   const ranks = new Array(arr.length);
@@ -29,21 +16,6 @@ export function spearman(a: number[], b: number[]): number {
   return 1 - (6 * d2) / (n * (n * n - 1));
 }
 
-export function kendallTau(a: number[], b: number[]): number {
-  const n = a.length;
-  let concordant = 0, discordant = 0;
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      const aSign = Math.sign(a[i] - a[j]);
-      const bSign = Math.sign(b[i] - b[j]);
-      if (aSign * bSign > 0) concordant++;
-      else if (aSign * bSign < 0) discordant++;
-    }
-  }
-  const pairs = (n * (n - 1)) / 2;
-  return (concordant - discordant) / pairs;
-}
-
 export function weightError(truth: number[], recovered: number[]): number {
   let sumSq = 0;
   for (let i = 0; i < truth.length; i++) {
@@ -60,10 +32,12 @@ export function l1Error(truth: number[], recovered: number[]): number {
   return sumAbs;
 }
 
-export function spreadRatio(truth: number[], recovered: number[]): number {
-  const trueSpread = Math.max(...truth) / Math.min(...truth);
-  const recSpread = Math.max(...recovered) / Math.min(...recovered);
-  return trueSpread > 0 ? recSpread / trueSpread : 0;
+export function rmse(truth: number[], recovered: number[]): number {
+  let sumSq = 0;
+  for (let i = 0; i < truth.length; i++) {
+    sumSq += (truth[i] - recovered[i]) ** 2;
+  }
+  return Math.sqrt(sumSq / truth.length);
 }
 
 export function avg(arr: number[]): number {

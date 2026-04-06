@@ -164,13 +164,11 @@ function measureAccuracy(
 
   return {
     spearman: metrics.spearman(trueWeights, recovered),
-    kendall: metrics.kendallTau(trueWeights, recovered),
+    rmse: metrics.rmse(trueWeights, recovered),
     l1: metrics.l1Error(trueWeights, recovered),
     l2: metrics.weightError(trueWeights, recovered),
     l2_mle,
     l2_cr: isNaN(l2_cr) ? undefined : l2_cr,
-    pearson: metrics.pearson(trueWeights, recovered),
-    spreadRatio: metrics.spreadRatio(trueWeights, recovered),
     pairCoverage: allPairSet.size / totalPossiblePairs,
   };
 }
@@ -311,13 +309,11 @@ function aggregateTrials(config: SimConfig, trials: TrialResult[]): AggregatedRe
       vpi: metrics.avg(snaps.map((s) => s.vpi)),
       totalVotes: Math.round(metrics.avg(snaps.map((s) => s.totalVotes))),
       spearman: metrics.avg(snaps.map((s) => s.spearman)),
-      kendall: metrics.avg(snaps.map((s) => s.kendall)),
+      rmse: metrics.avg(snaps.map((s) => s.rmse)),
       l1: metrics.avg(snaps.map((s) => s.l1)),
       l2: metrics.avg(snaps.map((s) => s.l2)),
       l2_mle: mleVals.length > 0 ? metrics.avg(mleVals) : undefined,
       l2_cr: crVals.length > 0 ? metrics.avg(crVals) : undefined,
-      pearson: metrics.avg(snaps.map((s) => s.pearson)),
-      spreadRatio: metrics.avg(snaps.map((s) => s.spreadRatio)),
       pairCoverage: metrics.avg(snaps.map((s) => s.pairCoverage)),
     });
   }
@@ -331,14 +327,12 @@ function aggregateTrials(config: SimConfig, trials: TrialResult[]): AggregatedRe
     config,
     convergenceCurve,
     final: {
-      pearson: { mean: metrics.avg(finals.map((f) => f.pearson)), median: metrics.median(finals.map((f) => f.pearson)) },
       spearman: { mean: metrics.avg(finals.map((f) => f.spearman)), median: metrics.median(finals.map((f) => f.spearman)) },
-      kendall: { mean: metrics.avg(finals.map((f) => f.kendall)), median: metrics.median(finals.map((f) => f.kendall)) },
+      rmse: { mean: metrics.avg(finals.map((f) => f.rmse)), median: metrics.median(finals.map((f) => f.rmse)) },
       l1: { mean: metrics.avg(finals.map((f) => f.l1)), median: metrics.median(finals.map((f) => f.l1)) },
       l2: { mean: metrics.avg(finals.map((f) => f.l2)), median: metrics.median(finals.map((f) => f.l2)) },
       l2_mle: finalMle.length > 0 ? { mean: metrics.avg(finalMle), median: metrics.median(finalMle) } : undefined,
       l2_cr: finalCr.length > 0 ? { mean: metrics.avg(finalCr) } : undefined,
-      spreadRatio: { mean: metrics.avg(finals.map((f) => f.spreadRatio)), median: metrics.median(finals.map((f) => f.spreadRatio)) },
       pairCoverage: { mean: metrics.avg(finals.map((f) => f.pairCoverage)) },
     },
   };
@@ -369,32 +363,29 @@ function outputConsole(result: AggregatedResult) {
 
   // Convergence curve
   console.log('  Convergence:');
-  console.log('  session  vpi     spearman  kendall   L1        L2        L2_mle    L2_cr     spread    coverage');
+  console.log('  session  vpi     spearman  RMSE      L1        L2        L2_mle    L2_cr     coverage');
   for (const snap of convergenceCurve) {
     console.log(
       `  ${String(snap.session).padStart(7)}  ` +
       `${snap.vpi.toFixed(1).padStart(5)}  ` +
       `${snap.spearman.toFixed(3).padStart(8)}  ` +
-      `${snap.kendall.toFixed(3).padStart(7)}  ` +
+      `${snap.rmse.toFixed(5).padStart(8)}  ` +
       `${snap.l1.toFixed(4).padStart(8)}  ` +
       `${snap.l2.toFixed(4).padStart(8)}  ` +
       `${(snap.l2_mle?.toFixed(4) ?? '   N/A').padStart(8)}  ` +
       `${(snap.l2_cr?.toFixed(4) ?? '   N/A').padStart(8)}  ` +
-      `${snap.spreadRatio.toFixed(2).padStart(8)}x ` +
       `${(snap.pairCoverage * 100).toFixed(0).padStart(6)}%`
     );
   }
 
   console.log('\n  Final (mean):');
   console.log(
-    `  pearson=${final.pearson.mean.toFixed(3)}  ` +
-    `spearman=${final.spearman.mean.toFixed(3)}  ` +
-    `kendall=${final.kendall.mean.toFixed(3)}  ` +
+    `  spearman=${final.spearman.mean.toFixed(3)}  ` +
+    `RMSE=${final.rmse.mean.toFixed(5)}  ` +
     `L1=${final.l1.mean.toFixed(4)}  ` +
     `L2=${final.l2.mean.toFixed(4)}  ` +
     `L2_mle=${final.l2_mle?.mean.toFixed(4) ?? 'N/A'}  ` +
     `L2_cr=${final.l2_cr?.mean.toFixed(4) ?? 'N/A'}  ` +
-    `spread=${final.spreadRatio.mean.toFixed(2)}x  ` +
     `coverage=${(final.pairCoverage.mean * 100).toFixed(0)}%`
   );
 }
@@ -405,15 +396,15 @@ function outputJson(result: AggregatedResult) {
 
 function outputCsv(result: AggregatedResult) {
   const { config, convergenceCurve } = result;
-  const header = 'items,alpha,sigma,scoring,strategy,flow,priorC,r,session,vpi,spearman,kendall,l1,l2,pearson,spreadRatio,pairCoverage';
+  const header = 'items,alpha,sigma,scoring,strategy,flow,priorC,r,session,vpi,spearman,rmse,l1,l2,pairCoverage';
   console.log(header);
   for (const snap of convergenceCurve) {
     console.log(
       `${config.items},${config.alpha},${config.sigma},${config.scoring},` +
       `${config.strategy},${config.flow},${config.priorC},${config.r},` +
       `${snap.session},${snap.vpi.toFixed(2)},${snap.spearman.toFixed(4)},` +
-      `${snap.kendall.toFixed(4)},${snap.l1.toFixed(6)},${snap.l2.toFixed(6)},${snap.pearson.toFixed(4)},` +
-      `${snap.spreadRatio.toFixed(4)},${snap.pairCoverage.toFixed(4)}`
+      `${snap.rmse.toFixed(6)},${snap.l1.toFixed(6)},${snap.l2.toFixed(6)},` +
+      `${snap.pairCoverage.toFixed(4)}`
     );
   }
 }
