@@ -1,30 +1,11 @@
 import { PowerRanker } from '../../src/index.js';
 import { bradleyTerryMLE } from '../mle.js';
-
-function mulberry32(seed: number): () => number {
-  let t = seed >>> 0;
-  return () => {
-    t = (t + 0x6d2b79f5) | 0;
-    let r = Math.imul(t ^ (t >>> 15), t | 1);
-    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function generateTrueWeights(n: number, alpha: number): number[] {
-  const raw = Array.from({ length: n }, (_, i) => Math.pow((i + 1) / n, alpha));
-  const sum = raw.reduce((a, b) => a + b, 0);
-  return raw.map((w) => w / sum);
-}
-
-function drawBinary(wA: number, wB: number, rng: () => number): number {
-  return rng() < wA / (wA + wB) ? 1.0 : 0.0;
-}
+import { mulberry32, generateGroundTruth, drawBinary } from '../utils.js';
+import { l2Error } from '../metrics.js';
 
 const N = 10;
-const trueWeights = generateTrueWeights(N, 1.0);
+const trueWeights = generateGroundTruth(N, 1.0);
 const itemIds = Array.from({ length: N }, (_, i) => `item-${i}`);
-const l2 = (a: number[], b: number[]) => Math.sqrt(a.reduce((s, v, i) => s + (v - b[i]) ** 2, 0));
 const nTrials = 300;
 
 console.log('=== Chain graph scaling ===');
@@ -42,8 +23,8 @@ for (const K of [5, 10, 20, 50, 100, 200]) {
     for (const p of prefs) ranker.addPreference(p);
     const spec = itemIds.map(id => ranker.run().get(id)!);
     const mle = itemIds.map(id => bradleyTerryMLE(itemIds, prefs, 2000, 1e-12).get(id)!);
-    sumS += l2(trueWeights, spec);
-    sumM += l2(trueWeights, mle);
+    sumS += l2Error(trueWeights, spec);
+    sumM += l2Error(trueWeights, mle);
   }
   console.log(`K=${String(K).padStart(3)}  L2_spec=${(sumS/nTrials).toFixed(5)}  L2_mle=${(sumM/nTrials).toFixed(5)}  ratio=${(sumS/sumM).toFixed(2)}x`);
 }
@@ -69,8 +50,8 @@ for (const Kb of [1, 5, 10, 20, 50, 100]) {
     for (const p of prefs) ranker.addPreference(p);
     const spec = itemIds.map(id => ranker.run().get(id)!);
     const mle = itemIds.map(id => bradleyTerryMLE(itemIds, prefs, 2000, 1e-12).get(id)!);
-    sumS += l2(trueWeights, spec);
-    sumM += l2(trueWeights, mle);
+    sumS += l2Error(trueWeights, spec);
+    sumM += l2Error(trueWeights, mle);
   }
   console.log(`Kb=${String(Kb).padStart(3)}  L2_spec=${(sumS/nTrials).toFixed(5)}  L2_mle=${(sumM/nTrials).toFixed(5)}  ratio=${(sumS/sumM).toFixed(2)}x`);
 }

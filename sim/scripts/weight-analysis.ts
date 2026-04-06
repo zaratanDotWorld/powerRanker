@@ -4,36 +4,8 @@
  */
 import { PowerRanker, pairKey } from '../../src/index.js';
 import { bradleyTerryMLE } from '../mle.js';
-
-// --- Inline helpers (copied from simulate.ts) ---
-function mulberry32(seed: number): () => number {
-  let t = seed >>> 0;
-  return () => {
-    t = (t + 0x6d2b79f5) | 0;
-    let r = Math.imul(t ^ (t >>> 15), t | 1);
-    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function generateTrueWeights(n: number, alpha: number): number[] {
-  const raw = Array.from({ length: n }, (_, i) => Math.pow((i + 1) / n, alpha));
-  const sum = raw.reduce((a, b) => a + b, 0);
-  return raw.map((w) => w / sum);
-}
-
-function gaussianVariate(rng: () => number): number {
-  const u1 = rng();
-  const u2 = rng();
-  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-}
-
-function drawScore(wA: number, wB: number, sigma: number, continuous: boolean, rng: () => number): number {
-  const logOdds = Math.log(wA / wB) + gaussianVariate(rng) * sigma;
-  const score = 1 / (1 + Math.exp(-logOdds));
-  if (continuous) return score;
-  return Math.round(score * 4) / 4; // 5-point Likert
-}
+import { mulberry32, generateGroundTruth, drawScore } from '../utils.js';
+import { l2Error } from '../metrics.js';
 
 // --- Main analysis ---
 const alpha = parseFloat(process.argv[2] ?? '1.0');
@@ -44,7 +16,7 @@ const seed = 42;
 const rng = mulberry32(seed);
 const continuous = scoring === 'continuous';
 
-const trueWeights = generateTrueWeights(items, alpha);
+const trueWeights = generateGroundTruth(items, alpha);
 const itemIds = Array.from({ length: items }, (_, i) => `item-${i}`);
 
 // Collect votes via random selection
@@ -54,7 +26,7 @@ for (let v = 0; v < totalVotes; v++) {
   const i = Math.floor(rng() * items);
   let j = Math.floor(rng() * (items - 1));
   if (j >= i) j++;
-  const score = drawScore(trueWeights[i], trueWeights[j], 0.15, continuous, rng);
+  const score = drawScore(trueWeights[i], trueWeights[j], 0.15, rng, continuous ? undefined : 5);
   allPrefs.push({ target: itemIds[i], source: itemIds[j], value: score });
 }
 
@@ -95,8 +67,7 @@ const spread = (a: number[]) => Math.max(...a) / Math.min(...a);
 console.log(`\nSpread — true: ${spread(trueWeights).toFixed(1)}x  spec(k): ${spread(specKArr).toFixed(1)}x  spec(0): ${spread(spec0Arr).toFixed(1)}x  MLE: ${spread(mleArr).toFixed(1)}x`);
 
 // L2
-const l2 = (a: number[], b: number[]) => Math.sqrt(a.reduce((s, v, i) => s + (v - b[i]) ** 2, 0));
-console.log(`L2 — spec(k): ${l2(trueWeights, specKArr).toFixed(5)}  spec(0): ${l2(trueWeights, spec0Arr).toFixed(5)}  MLE: ${l2(trueWeights, mleArr).toFixed(5)}`);
+console.log(`L2 — spec(k): ${l2Error(trueWeights, specKArr).toFixed(5)}  spec(0): ${l2Error(trueWeights, spec0Arr).toFixed(5)}  MLE: ${l2Error(trueWeights, mleArr).toFixed(5)}`);
 
 // Pearson (linear correlation of weights)
 const pearson = (a: number[], b: number[]) => {

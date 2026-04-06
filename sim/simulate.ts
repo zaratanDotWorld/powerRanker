@@ -28,20 +28,7 @@ import type { ActiveImpactTerm, FlowMode } from '../src/index.js';
 import type { SimConfig, SessionSnapshot, TrialResult, AggregatedResult, PriorMode } from './types.js';
 import * as metrics from './metrics.js';
 import { bradleyTerryMLE, cramerRaoBound } from './mle.js';
-
-// ---------------------------------------------------------------------------
-// Seeded PRNG (mulberry32)
-// ---------------------------------------------------------------------------
-
-function mulberry32(seed: number): () => number {
-  let s = seed | 0;
-  return () => {
-    s = (s + 0x6D2B79F5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+import { mulberry32, generateGroundTruth, drawScore } from './utils.js';
 
 // ---------------------------------------------------------------------------
 // CLI argument parsing
@@ -75,40 +62,6 @@ function parseArgs(): SimConfig {
     priorMode: (opts['prior-mode'] ?? 'fixed') as PriorMode,
     seed: opts['seed'] !== undefined ? parseInt(opts['seed']) : undefined,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Weight generation
-// ---------------------------------------------------------------------------
-
-function generateTrueWeights(n: number, alpha: number): number[] {
-  if (n <= 0) throw new Error('Cannot generate weights for 0 items');
-  const raw = Array.from({ length: n }, (_, i) => Math.pow((i + 1) / n, alpha));
-  const sum = raw.reduce((a, b) => a + b, 0);
-  return raw.map((w) => w / sum);
-}
-
-// ---------------------------------------------------------------------------
-// Vote simulation (logit-normal noise model)
-// ---------------------------------------------------------------------------
-
-function gaussianVariate(rng: () => number): number {
-  const u1 = rng();
-  const u2 = rng();
-  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-}
-
-// Logit-normal vote model: computes true log-odds log(wA/wB), adds Gaussian
-// noise to draw from N(log(wA/wB), σ²), then applies sigmoid to map back to
-// (0, 1). Equivalent to drawing the BT probability with noisy strength estimates.
-function drawScore(
-  wA: number, wB: number, sigma: number, continuous: boolean, rng: () => number, likertPoints: number = 5
-): number {
-  const logOdds = Math.log(wA / wB) + gaussianVariate(rng) * sigma;
-  const score = 1 / (1 + Math.exp(-logOdds));
-  if (continuous) return score;
-  const bins = likertPoints - 1;
-  return Math.round(score * bins) / bins;
 }
 
 // ---------------------------------------------------------------------------
@@ -157,7 +110,7 @@ function measureAccuracy(
   // MLE Bradley-Terry
   const mleWeights = bradleyTerryMLE(itemIds, allVotes);
   const mleRecovered = itemIds.map((id) => mleWeights.get(id)!);
-  const l2_mle = metrics.weightError(trueWeights, mleRecovered);
+  const l2_mle = metrics.l2Error(trueWeights, mleRecovered);
 
   // Cramér-Rao bound
   const l2_cr = cramerRaoBound(trueWeights, allVotes, itemIds, sigma);
@@ -166,7 +119,7 @@ function measureAccuracy(
     spearman: metrics.spearman(trueWeights, recovered),
     rmse: metrics.rmse(trueWeights, recovered),
     l1: metrics.l1Error(trueWeights, recovered),
-    l2: metrics.weightError(trueWeights, recovered),
+    l2: metrics.l2Error(trueWeights, recovered),
     l2_mle,
     l2_cr: isNaN(l2_cr) ? undefined : l2_cr,
     pairCoverage: allPairSet.size / totalPossiblePairs,
@@ -201,7 +154,7 @@ function computeK(
 export function runTrial(config: SimConfig, trialSeed: number): TrialResult {
   const rng = mulberry32(trialSeed);
 
-  const trueWeights = generateTrueWeights(config.items, config.alpha);
+  const trueWeights = generateGroundTruth(config.items, config.alpha);
   const itemIds = Array.from({ length: config.items }, (_, i) => `item-${i}`);
   const totalPossiblePairs = (config.items * (config.items - 1)) / 2;
 
@@ -252,7 +205,8 @@ export function runTrial(config: SimConfig, trialSeed: number): TrialResult {
         const iB = parseInt(pair.beta.split('-')[1]);
         const score = drawScore(
           trueWeights[iA], trueWeights[iB],
-          config.sigma, config.scoring === 'continuous', rng, config.likertPoints,
+          config.sigma, rng,
+          config.scoring === 'continuous' ? undefined : (config.likertPoints ?? 5),
         );
 
         allPrefs.push({ target: pair.alpha, source: pair.beta, value: score });
@@ -346,7 +300,7 @@ function outputConsole(result: AggregatedResult) {
   const { config, final, convergenceCurve } = result;
   const totalVotes = config.judges * config.sessions * config.sessionSize;
   const vpi = totalVotes / config.items;
-  const trueWeights = generateTrueWeights(config.items, config.alpha);
+  const trueWeights = generateGroundTruth(config.items, config.alpha);
   const trueSpread = Math.max(...trueWeights) / Math.min(...trueWeights);
 
   console.log('=== Ranker Simulation ===');

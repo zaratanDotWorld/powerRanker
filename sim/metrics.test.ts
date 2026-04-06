@@ -1,5 +1,5 @@
 import { describe, test, expect } from '@jest/globals';
-import { spearman, weightError, l1Error, rmse, rankArray } from './metrics.js';
+import { spearman, l2Error, l1Error, rmse, rankArray } from './metrics.js';
 
 describe('metrics', () => {
   describe('rankArray', () => {
@@ -24,13 +24,13 @@ describe('metrics', () => {
     });
   });
 
-  describe('weightError (L2)', () => {
+  describe('l2Error (L2)', () => {
     test('identical vectors', () => {
-      expect(weightError([0.5, 0.3, 0.2], [0.5, 0.3, 0.2])).toBeCloseTo(0);
+      expect(l2Error([0.5, 0.3, 0.2], [0.5, 0.3, 0.2])).toBeCloseTo(0);
     });
 
     test('known L2 distance', () => {
-      expect(weightError([1, 0, 0], [0, 1, 0])).toBeCloseTo(Math.sqrt(2));
+      expect(l2Error([1, 0, 0], [0, 1, 0])).toBeCloseTo(Math.sqrt(2));
     });
   });
 
@@ -57,7 +57,7 @@ describe('metrics', () => {
     test('RMSE equals L2 / sqrt(n)', () => {
       const a = [0.5, 0.3, 0.2];
       const b = [0.4, 0.35, 0.25];
-      const l2 = weightError(a, b);
+      const l2 = l2Error(a, b);
       expect(rmse(a, b)).toBeCloseTo(l2 / Math.sqrt(a.length));
     });
   });

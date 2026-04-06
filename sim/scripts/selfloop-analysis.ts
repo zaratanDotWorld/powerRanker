@@ -8,17 +8,16 @@
  */
 
 import { PowerRanker } from '../../src/index.js';
-import * as metrics from './metrics.js';
+import { generateGroundTruth } from '../utils.js';
+import * as metrics from '../metrics.js';
 
-function generateTrueWeights(n: number, alpha: number): number[] {
-  const raw = Array.from({ length: n }, (_, i) => Math.pow((i + 1) / n, alpha));
-  const sum = raw.reduce((a, b) => a + b, 0);
-  return raw.map((w) => w / sum);
+function spreadRatio(truth: number[], recovered: number[]): number {
+  return (Math.max(...recovered) / Math.min(...recovered)) / (Math.max(...truth) / Math.min(...truth));
 }
 
 // Test 1: All pairs observed exactly once with exact BT probabilities, no pseudocount
 function testExactBT(n: number, alpha: number): void {
-  const trueWeights = generateTrueWeights(n, alpha);
+  const trueWeights = generateGroundTruth(n, alpha);
   const itemIds = Array.from({ length: n }, (_, i) => `item-${i}`);
 
   const ranker = new PowerRanker({
@@ -41,9 +40,9 @@ function testExactBT(n: number, alpha: number): void {
   const weights = ranker.run();
   const recovered = itemIds.map((id) => weights.get(id)!);
 
-  const l2 = metrics.weightError(trueWeights, recovered);
+  const l2 = metrics.l2Error(trueWeights, recovered);
   const sp = metrics.spearman(trueWeights, recovered);
-  const spread = metrics.spreadRatio(trueWeights, recovered);
+  const spread = spreadRatio(trueWeights, recovered);
 
   console.log(`  n=${n}, α=${alpha}: L2=${l2.toFixed(6)}, spearman=${sp.toFixed(4)}, spread=${spread.toFixed(4)}`);
 
@@ -59,7 +58,7 @@ function testExactBT(n: number, alpha: number): void {
 
 // Test 2: Same but with unequal pair observation counts
 function testUnequalObservations(n: number, alpha: number): void {
-  const trueWeights = generateTrueWeights(n, alpha);
+  const trueWeights = generateGroundTruth(n, alpha);
   const itemIds = Array.from({ length: n }, (_, i) => `item-${i}`);
 
   const ranker = new PowerRanker({
@@ -85,7 +84,7 @@ function testUnequalObservations(n: number, alpha: number): void {
   const weights = ranker.run();
   const recovered = itemIds.map((id) => weights.get(id)!);
 
-  const l2 = metrics.weightError(trueWeights, recovered);
+  const l2 = metrics.l2Error(trueWeights, recovered);
   console.log(`  n=${n}, α=${alpha}, unequal obs: L2=${l2.toFixed(6)}`);
 }
 
@@ -94,7 +93,7 @@ function testUnequalObservations(n: number, alpha: number): void {
 // With exact BT and complete graph: P_ij = [w_j/(w_i+w_j)] / (n-1)
 // Diagonal: P_ii = 1 - Σ_{j≠i} P_ij
 function testRankCentrality(n: number, alpha: number): void {
-  const trueWeights = generateTrueWeights(n, alpha);
+  const trueWeights = generateGroundTruth(n, alpha);
 
   // Build RC transition matrix directly
   const P: number[][] = Array.from({ length: n }, () => new Array(n).fill(0));
@@ -128,9 +127,9 @@ function testRankCentrality(n: number, alpha: number): void {
     if (maxDiff < 1e-12) break;
   }
 
-  const l2 = metrics.weightError(trueWeights, vec);
+  const l2 = metrics.l2Error(trueWeights, vec);
   const sp = metrics.spearman(trueWeights, vec);
-  const spread = metrics.spreadRatio(trueWeights, vec);
+  const spread = spreadRatio(trueWeights, vec);
 
   console.log(`  n=${n}, α=${alpha}, Rank Centrality: L2=${l2.toFixed(6)}, spearman=${sp.toFixed(4)}, spread=${spread.toFixed(4)}`);
 
@@ -145,7 +144,7 @@ function testRankCentrality(n: number, alpha: number): void {
 
 // Compare our construction vs RC matrix directly
 function compareMatrices(n: number, alpha: number): void {
-  const trueWeights = generateTrueWeights(n, alpha);
+  const trueWeights = generateGroundTruth(n, alpha);
   const itemIds = Array.from({ length: n }, (_, i) => `item-${i}`);
 
   // Build our flow matrix manually (mimicking PowerRanker)
@@ -218,7 +217,7 @@ function compareMatrices(n: number, alpha: number): void {
 
 // Test 5: Our construction with tighter convergence tolerance
 function testTightConvergence(n: number, alpha: number): void {
-  const trueWeights = generateTrueWeights(n, alpha);
+  const trueWeights = generateGroundTruth(n, alpha);
   const itemIds = Array.from({ length: n }, (_, i) => `item-${i}`);
 
   const ranker = new PowerRanker({
@@ -239,8 +238,8 @@ function testTightConvergence(n: number, alpha: number): void {
   const recDefault = itemIds.map((id) => defaultWeights.get(id)!);
   const recTight = itemIds.map((id) => tightWeights.get(id)!);
 
-  const l2Default = metrics.weightError(trueWeights, recDefault);
-  const l2Tight = metrics.weightError(trueWeights, recTight);
+  const l2Default = metrics.l2Error(trueWeights, recDefault);
+  const l2Tight = metrics.l2Error(trueWeights, recTight);
 
   console.log(`  n=${n}, α=${alpha}: L2(ε=0.001)=${l2Default.toFixed(6)}, L2(ε=1e-10)=${l2Tight.toFixed(10)}`);
 }

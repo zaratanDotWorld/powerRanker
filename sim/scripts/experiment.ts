@@ -6,37 +6,9 @@
 
 import { PowerRanker } from '../../src/index.js';
 import { bradleyTerryMLE } from '../mle.js';
-import { powerLawFit, spreadCorrection } from './posthoc.js';
-import * as metrics from './metrics.js';
-
-// Seeded PRNG
-function mulberry32(seed: number): () => number {
-  let s = seed | 0;
-  return () => {
-    s = (s + 0x6D2B79F5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function gaussianVariate(rng: () => number): number {
-  const u1 = rng();
-  const u2 = rng();
-  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-}
-
-function generateTrueWeights(n: number, alpha: number): number[] {
-  const raw = Array.from({ length: n }, (_, i) => Math.pow((i + 1) / n, alpha));
-  const sum = raw.reduce((a, b) => a + b, 0);
-  return raw.map((w) => w / sum);
-}
-
-function drawScore(wA: number, wB: number, sigma: number, rng: () => number): number {
-  const logOdds = Math.log(wA / wB) + gaussianVariate(rng) * sigma;
-  const score = 1 / (1 + Math.exp(-logOdds));
-  return Math.round(score * 4) / 4; // 5-point Likert
-}
+import { mulberry32, generateGroundTruth, drawScore } from '../utils.js';
+import { powerLawFit, spreadCorrection } from '../posthoc.js';
+import * as metrics from '../metrics.js';
 
 interface TrialMetrics {
   l2_spectral: number;
@@ -50,7 +22,7 @@ interface TrialMetrics {
 
 function runTrial(n: number, alpha: number, sigma: number, vpi: number, seed: number): TrialMetrics {
   const rng = mulberry32(seed);
-  const trueWeights = generateTrueWeights(n, alpha);
+  const trueWeights = generateGroundTruth(n, alpha);
   const itemIds = Array.from({ length: n }, (_, i) => `item-${i}`);
   const totalVotes = Math.round(n * vpi);
   const totalPairs = (n * (n - 1)) / 2;
@@ -63,7 +35,7 @@ function runTrial(n: number, alpha: number, sigma: number, vpi: number, seed: nu
     let j = Math.floor(rng() * (n - 1));
     if (j >= i) j++;
 
-    const score = drawScore(trueWeights[i], trueWeights[j], sigma, rng);
+    const score = drawScore(trueWeights[i], trueWeights[j], sigma, rng, 5);
     votes.push({ target: itemIds[i], source: itemIds[j], value: score });
   }
 
@@ -92,11 +64,11 @@ function runTrial(n: number, alpha: number, sigma: number, vpi: number, seed: nu
   const mleFromSpectral = bradleyTerryMLE(itemIds, votes, 500, 1e-8);
 
   return {
-    l2_spectral: metrics.weightError(trueWeights, spectral),
-    l2_mle: metrics.weightError(trueWeights, mle),
-    l2_powerlaw: metrics.weightError(trueWeights, plFit),
-    l2_stretch: metrics.weightError(trueWeights, stretched),
-    l2_mle_init_spectral: metrics.weightError(trueWeights, itemIds.map((id) => mleFromSpectral.get(id)!)),
+    l2_spectral: metrics.l2Error(trueWeights, spectral),
+    l2_mle: metrics.l2Error(trueWeights, mle),
+    l2_powerlaw: metrics.l2Error(trueWeights, plFit),
+    l2_stretch: metrics.l2Error(trueWeights, stretched),
+    l2_mle_init_spectral: metrics.l2Error(trueWeights, itemIds.map((id) => mleFromSpectral.get(id)!)),
     spread_spectral: spectralSpread / trueSpread,
     spread_mle: (Math.max(...mle) / Math.min(...mle)) / trueSpread,
   };
@@ -157,7 +129,7 @@ function runExperiments() {
 
 function runTrialWithPrior(n: number, alpha: number, sigma: number, vpi: number, priorC: number, seed: number): number {
   const rng = mulberry32(seed);
-  const trueWeights = generateTrueWeights(n, alpha);
+  const trueWeights = generateGroundTruth(n, alpha);
   const itemIds = Array.from({ length: n }, (_, i) => `item-${i}`);
   const totalVotes = Math.round(n * vpi);
 
@@ -166,7 +138,7 @@ function runTrialWithPrior(n: number, alpha: number, sigma: number, vpi: number,
     const i = Math.floor(rng() * n);
     let j = Math.floor(rng() * (n - 1));
     if (j >= i) j++;
-    const score = drawScore(trueWeights[i], trueWeights[j], sigma, rng);
+    const score = drawScore(trueWeights[i], trueWeights[j], sigma, rng, 5);
     votes.push({ target: itemIds[i], source: itemIds[j], value: score });
   }
 
@@ -175,12 +147,12 @@ function runTrialWithPrior(n: number, alpha: number, sigma: number, vpi: number,
   for (const p of votes) ranker.addPreference(p);
   const spectralMap = ranker.run();
   const spectral = itemIds.map((id) => spectralMap.get(id)!);
-  return metrics.weightError(trueWeights, spectral);
+  return metrics.l2Error(trueWeights, spectral);
 }
 
 function runTrialMLESmoothed(n: number, alpha: number, sigma: number, vpi: number, smooth: number, seed: number): number {
   const rng = mulberry32(seed);
-  const trueWeights = generateTrueWeights(n, alpha);
+  const trueWeights = generateGroundTruth(n, alpha);
   const itemIds = Array.from({ length: n }, (_, i) => `item-${i}`);
   const totalVotes = Math.round(n * vpi);
 
@@ -189,7 +161,7 @@ function runTrialMLESmoothed(n: number, alpha: number, sigma: number, vpi: numbe
     const i = Math.floor(rng() * n);
     let j = Math.floor(rng() * (n - 1));
     if (j >= i) j++;
-    const score = drawScore(trueWeights[i], trueWeights[j], sigma, rng);
+    const score = drawScore(trueWeights[i], trueWeights[j], sigma, rng, 5);
     votes.push({ target: itemIds[i], source: itemIds[j], value: score });
   }
 
@@ -215,7 +187,7 @@ function runTrialMLESmoothed(n: number, alpha: number, sigma: number, vpi: numbe
 
   const mleMap = bradleyTerryMLE(itemIds, votes);
   const mle = itemIds.map((id) => mleMap.get(id)!);
-  return metrics.weightError(trueWeights, mle);
+  return metrics.l2Error(trueWeights, mle);
 }
 
 runExperiments();

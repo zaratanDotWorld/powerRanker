@@ -4,56 +4,8 @@
  */
 import { PowerRanker, pairKey } from '../../src/index.js';
 import { bradleyTerryMLE } from '../mle.js';
-
-function mulberry32(seed: number): () => number {
-  let t = seed >>> 0;
-  return () => {
-    t = (t + 0x6d2b79f5) | 0;
-    let r = Math.imul(t ^ (t >>> 15), t | 1);
-    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function generateTrueWeights(n: number, alpha: number): number[] {
-  const raw = Array.from({ length: n }, (_, i) => Math.pow((i + 1) / n, alpha));
-  const sum = raw.reduce((a, b) => a + b, 0);
-  return raw.map((w) => w / sum);
-}
-
-function gaussianVariate(rng: () => number): number {
-  const u1 = rng();
-  const u2 = rng();
-  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-}
-
-function drawScore(wA: number, wB: number, sigma: number, rng: () => number): number {
-  const logOdds = Math.log(wA / wB) + gaussianVariate(rng) * sigma;
-  const score = 1 / (1 + Math.exp(-logOdds));
-  return Math.round(score * 4) / 4; // 5-point Likert
-}
-
-function rankArray(arr: number[]): number[] {
-  const sorted = arr.map((v, i) => ({ v, i })).sort((a, b) => b.v - a.v);
-  const ranks = new Array(arr.length);
-  sorted.forEach((el, rank) => { ranks[el.i] = rank + 1; });
-  return ranks;
-}
-
-function spearman(a: number[], b: number[]): number {
-  const n = a.length;
-  const rA = rankArray(a);
-  const rB = rankArray(b);
-  let d2 = 0;
-  for (let i = 0; i < n; i++) d2 += (rA[i] - rB[i]) ** 2;
-  return 1 - (6 * d2) / (n * (n * n - 1));
-}
-
-function rmse(a: number[], b: number[]): number {
-  let sumSq = 0;
-  for (let i = 0; i < a.length; i++) sumSq += (a[i] - b[i]) ** 2;
-  return Math.sqrt(sumSq / a.length);
-}
+import { mulberry32, generateGroundTruth, drawScore } from '../utils.js';
+import { rankArray, spearman, rmse } from '../metrics.js';
 
 // --- Config ---
 const N = 100;
@@ -63,7 +15,7 @@ const nTrials = 5;
 const sessionSize = 50; // larger sessions = fewer ranker rebuilds
 const seed = 42;
 
-const trueWeights = generateTrueWeights(N, alpha);
+const trueWeights = generateGroundTruth(N, alpha);
 const itemIds = Array.from({ length: N }, (_, i) => `item-${String(i).padStart(3, '0')}`);
 
 // --- Run ---
@@ -97,7 +49,7 @@ for (let vpiTarget = 1; vpiTarget <= 20; vpiTarget += 1) {
         for (const pair of pairs) {
           const iA = parseInt(pair.alpha.split('-')[1]);
           const iB = parseInt(pair.beta.split('-')[1]);
-          const score = drawScore(trueWeights[iA], trueWeights[iB], sigma, rng);
+          const score = drawScore(trueWeights[iA], trueWeights[iB], sigma, rng, 5);
           allPrefs.push({ target: pair.alpha, source: pair.beta, value: score });
           exclude.add(pairKey(pair.alpha, pair.beta));
         }
@@ -122,7 +74,7 @@ for (let vpiTarget = 1; vpiTarget <= 20; vpiTarget += 1) {
         const i = Math.floor(rng() * N);
         let j = Math.floor(rng() * (N - 1));
         if (j >= i) j++;
-        const score = drawScore(trueWeights[i], trueWeights[j], sigma, rng);
+        const score = drawScore(trueWeights[i], trueWeights[j], sigma, rng, 5);
         allPrefs.push({ target: itemIds[i], source: itemIds[j], value: score });
       }
 

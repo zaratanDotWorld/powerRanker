@@ -1,30 +1,8 @@
 import { bradleyTerryMLE } from '../mle.js';
-
-function mulberry32(seed: number): () => number {
-  let t = seed >>> 0;
-  return () => {
-    t = (t + 0x6d2b79f5) | 0;
-    let r = Math.imul(t ^ (t >>> 15), t | 1);
-    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function generateTrueWeights(n: number, alpha: number): number[] {
-  const raw = Array.from({ length: n }, (_, i) => Math.pow((i + 1) / n, alpha));
-  const sum = raw.reduce((a, b) => a + b, 0);
-  return raw.map((w) => w / sum);
-}
-
-function drawScore(wA: number, wB: number, sigma: number, rng: () => number): number {
-  const u1 = rng(); const u2 = rng();
-  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-  const score = 1 / (1 + Math.exp(-(Math.log(wA / wB) + z * sigma)));
-  return Math.round(score * 4) / 4;
-}
+import { mulberry32, generateGroundTruth, drawScore } from '../utils.js';
 
 const N = 100;
-const trueWeights = generateTrueWeights(N, 1.0);
+const trueWeights = generateGroundTruth(N, 1.0);
 const itemIds = Array.from({ length: N }, (_, i) => `item-${String(i).padStart(3, '0')}`);
 const totalPairs = N * (N - 1) / 2;
 

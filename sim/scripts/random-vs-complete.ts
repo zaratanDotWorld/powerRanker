@@ -1,38 +1,12 @@
 import { PowerRanker } from '../../src/index.js';
 import { bradleyTerryMLE } from '../mle.js';
-
-function mulberry32(seed: number): () => number {
-  let t = seed >>> 0;
-  return () => {
-    t = (t + 0x6d2b79f5) | 0;
-    let r = Math.imul(t ^ (t >>> 15), t | 1);
-    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function generateTrueWeights(n: number, alpha: number): number[] {
-  const raw = Array.from({ length: n }, (_, i) => Math.pow((i + 1) / n, alpha));
-  const sum = raw.reduce((a, b) => a + b, 0);
-  return raw.map((w) => w / sum);
-}
-
-function gaussianVariate(rng: () => number): number {
-  const u1 = rng();
-  const u2 = rng();
-  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-}
-
-function drawScore(wA: number, wB: number, sigma: number, rng: () => number): number {
-  const logOdds = Math.log(wA / wB) + gaussianVariate(rng) * sigma;
-  return 1 / (1 + Math.exp(-logOdds));
-}
+import { mulberry32, generateGroundTruth, drawScore } from '../utils.js';
+import { l2Error } from '../metrics.js';
 
 const N = 20;
 const alpha = 1.0;
 const sigma = 0.15;
-const l2 = (a: number[], b: number[]) => Math.sqrt(a.reduce((s, v, i) => s + (v - b[i]) ** 2, 0));
-const trueWeights = generateTrueWeights(N, alpha);
+const trueWeights = generateGroundTruth(N, alpha);
 const itemIds = Array.from({ length: N }, (_, i) => `item-${i}`);
 const nTrials = 30;
 
@@ -58,8 +32,8 @@ for (const vpiTarget of [10, 19, 38, 76]) {
     for (const p of allPrefs) ranker.addPreference(p);
     const spec = itemIds.map(id => ranker.run().get(id)!);
     const mle = itemIds.map(id => bradleyTerryMLE(itemIds, allPrefs).get(id)!);
-    sumSpecC += l2(trueWeights, spec);
-    sumMleC += l2(trueWeights, mle);
+    sumSpecC += l2Error(trueWeights, spec);
+    sumMleC += l2Error(trueWeights, mle);
   }
   const actualVpi = K * N * (N-1) / 2 / N;
   console.log(`complete     ${actualVpi.toFixed(0).padStart(4)}    ${(sumSpecC/nTrials).toFixed(5)}     ${(sumMleC/nTrials).toFixed(5)}     ${((sumSpecC/nTrials)/(sumMleC/nTrials)).toFixed(1)}x`);
@@ -80,8 +54,8 @@ for (const vpiTarget of [10, 19, 38, 76]) {
     for (const p of allPrefs) ranker.addPreference(p);
     const spec = itemIds.map(id => ranker.run().get(id)!);
     const mle = itemIds.map(id => bradleyTerryMLE(itemIds, allPrefs).get(id)!);
-    sumSpecR += l2(trueWeights, spec);
-    sumMleR += l2(trueWeights, mle);
+    sumSpecR += l2Error(trueWeights, spec);
+    sumMleR += l2Error(trueWeights, mle);
   }
   console.log(`random       ${vpiTarget.toString().padStart(4)}    ${(sumSpecR/nTrials).toFixed(5)}     ${(sumMleR/nTrials).toFixed(5)}     ${((sumSpecR/nTrials)/(sumMleR/nTrials)).toFixed(1)}x`);
   console.log('');

@@ -1,37 +1,11 @@
 import { PowerRanker } from '../../src/index.js';
 import { bradleyTerryMLE } from '../mle.js';
-
-function mulberry32(seed: number): () => number {
-  let t = seed >>> 0;
-  return () => {
-    t = (t + 0x6d2b79f5) | 0;
-    let r = Math.imul(t ^ (t >>> 15), t | 1);
-    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function generateTrueWeights(n: number, alpha: number): number[] {
-  const raw = Array.from({ length: n }, (_, i) => Math.pow((i + 1) / n, alpha));
-  const sum = raw.reduce((a, b) => a + b, 0);
-  return raw.map((w) => w / sum);
-}
-
-function drawBinary(wA: number, wB: number, rng: () => number): number {
-  const p = wA / (wA + wB);
-  return rng() < p ? 1.0 : 0.0;
-}
-
-function drawFractional(wA: number, wB: number, sigma: number, rng: () => number): number {
-  const u1 = rng(); const u2 = rng();
-  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-  return 1 / (1 + Math.exp(-(Math.log(wA / wB) + z * sigma)));
-}
+import { mulberry32, generateGroundTruth, drawBinary, drawScore } from '../utils.js';
+import { l2Error } from '../metrics.js';
 
 const N = 10;
-const trueWeights = generateTrueWeights(N, 1.0);
+const trueWeights = generateGroundTruth(N, 1.0);
 const itemIds = Array.from({ length: N }, (_, i) => `item-${i}`);
-const l2 = (a: number[], b: number[]) => Math.sqrt(a.reduce((s, v, i) => s + (v - b[i]) ** 2, 0));
 
 function runTest(
   label: string,
@@ -57,7 +31,7 @@ function runTest(
   }
 
   console.log(`${label}`);
-  console.log(`  max|spec-mle| = ${maxDiff.toExponential(3)}  L2_spec=${l2(trueWeights, spec).toFixed(5)}  L2_mle=${l2(trueWeights, mle).toFixed(5)}`);
+  console.log(`  max|spec-mle| = ${maxDiff.toExponential(3)}  L2_spec=${l2Error(trueWeights, spec).toFixed(5)}  L2_mle=${l2Error(trueWeights, mle).toFixed(5)}`);
 }
 
 const rng = mulberry32(42);
@@ -84,7 +58,7 @@ console.log('=== Condition testing: when are spectral and MLE equivalent? ===\n'
   for (let i = 0; i < N; i++) {
     for (let j = i + 1; j < N; j++) {
       for (let rep = 0; rep < K; rep++) {
-        prefs.push({ target: itemIds[i], source: itemIds[j], value: drawFractional(trueWeights[i], trueWeights[j], 0.15, rng) });
+        prefs.push({ target: itemIds[i], source: itemIds[j], value: drawScore(trueWeights[i], trueWeights[j], 0.15, rng) });
       }
     }
   }
@@ -140,7 +114,7 @@ console.log('=== Condition testing: when are spectral and MLE equivalent? ===\n'
   for (let i = 0; i < N; i++) {
     for (let j = i + 1; j < N; j++) {
       for (let rep = 0; rep < K; rep++) {
-        const raw = drawFractional(trueWeights[i], trueWeights[j], 0.15, rng);
+        const raw = drawScore(trueWeights[i], trueWeights[j], 0.15, rng);
         const likert = Math.round(raw * 4) / 4;
         prefs.push({ target: itemIds[i], source: itemIds[j], value: likert });
       }

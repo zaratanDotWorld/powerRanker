@@ -16,7 +16,7 @@ export function spearman(a: number[], b: number[]): number {
   return 1 - (6 * d2) / (n * (n * n - 1));
 }
 
-export function weightError(truth: number[], recovered: number[]): number {
+export function l2Error(truth: number[], recovered: number[]): number {
   let sumSq = 0;
   for (let i = 0; i < truth.length; i++) {
     sumSq += (truth[i] - recovered[i]) ** 2;
