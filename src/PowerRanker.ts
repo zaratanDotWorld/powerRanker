@@ -239,8 +239,25 @@ export class PowerRanker {
     const n = this.items.length;
     const mat = this.matrix.clone();
 
-    if (this.options.normalization === 'rankCentrality') {
-      // Rank centrality: per-pair win fractions divided by d_max.
+    if (this.options.normalization === 'flow') {
+      // Flow normalization: diagonal = column sums, then row-normalize.
+      // Preserves vote accumulation but has degree-dependent bias on incomplete graphs.
+      const colSums = mat.sum('column');
+      for (let i = 0; i < n; i++) {
+        mat.set(i, i, colSums[i] - mat.get(i, i));
+      }
+
+      const rowSums = mat.sum('row');
+      for (let i = 0; i < n; i++) {
+        if (rowSums[i] > 0) {
+          mat.setRow(i, mat.getRow(i).map((v) => v / rowSums[i]));
+        } else {
+          mat.setRow(i, Array(n).fill(1 / n));
+        }
+      }
+    } else {
+      // Default: rank centrality (Negahban et al., 2017).
+      // Per-pair win fractions divided by d_max.
       // Eliminates degree-dependent bias on incomplete graphs.
       const degree = Array(n).fill(0);
       for (let i = 0; i < n; i++) {
@@ -269,21 +286,6 @@ export class PowerRanker {
         T.set(i, i, 1 - offDiag);
       }
       mat.setSubMatrix(T.to2DArray(), 0, 0);
-    } else {
-      // Default flow normalization: diagonal = column sums, then row-normalize.
-      const colSums = mat.sum('column');
-      for (let i = 0; i < n; i++) {
-        mat.set(i, i, colSums[i] - mat.get(i, i));
-      }
-
-      const rowSums = mat.sum('row');
-      for (let i = 0; i < n; i++) {
-        if (rowSums[i] > 0) {
-          mat.setRow(i, mat.getRow(i).map((v) => v / rowSums[i]));
-        } else {
-          mat.setRow(i, Array(n).fill(1 / n));
-        }
-      }
     }
 
     // Power iteration

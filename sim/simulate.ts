@@ -11,7 +11,7 @@
  *   --sessions <s>    Sessions per judge (default: 3)
  *   --ssize <sz>      Votes per session (default: 10)
  *   --trials <t>      Number of simulation trials (default: 50)
- *   --prior <c>       Prior strength constant (default: 1)
+ *   --prior <c>       Prior strength constant (default: 0)
  *   --r <r>           Active select power transform (default: 0.9)
  *   --select <terms>  Active select terms (default: coverage,proximity)
  *   --sigma <s>       Logit-normal noise std dev (default: 1)
@@ -51,7 +51,7 @@ function parseArgs(): SimConfig {
     sessions: parseInt(opts['sessions'] ?? '3'),
     sessionSize: parseInt(opts['ssize'] ?? '10'),
     trials: parseInt(opts['trials'] ?? '50'),
-    priorC: parseFloat(opts['prior'] ?? '1'),
+    priorC: parseFloat(opts['prior'] ?? '0'),
     r: parseFloat(opts['r'] ?? '0.9'),
     terms: (opts['select'] ?? 'coverage,proximity').split(',') as ActiveImpactTerm[],
     sigma: parseFloat(opts['sigma'] ?? '1'),

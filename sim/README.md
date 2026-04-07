@@ -33,7 +33,7 @@ This is a structural bias, not a noise artifact — it persists even with infini
 Rank centrality (Negahban et al., 2017) fixes this by normalizing per-pair win fractions by a global constant (d_max) instead of per-row sums.
 Result: spectral accuracy matches MLE across all coverage levels, with 2-4x improvement over flow normalization on incomplete graphs.
 
-See `RESEARCH_LOG.md` Phase 9 for the full analysis, including a step-by-step derivation on a 3-node chain graph.
+See `RESEARCH.md` for the full analysis, including a step-by-step derivation on a 3-node chain graph.
 
 ## Recommended Configurations
 
@@ -89,7 +89,7 @@ import { spearman, rmse, l1Error, l2Error, rankArray, avg, median } from './metr
 
 ```bash
 # Basic run (30 items, default settings)
-npx tsx sim/simulate.ts --items 30 --alpha 1.0 --judges 10 --sessions 3 --ssize 12 --sigma 1 --prior 1 --trials 50 --seed 42
+npx tsx sim/simulate.ts --items 30 --alpha 1.0 --judges 10 --sessions 3 --ssize 12 --sigma 1 --prior 0 --trials 50 --seed 42
 
 # Parameter sweep
 npx tsx sim/sweep.ts --config sweep.json
@@ -100,4 +100,5 @@ npx tsx sim/scripts/chain-3item.ts
 
 ## Documentation
 
-- `RESEARCH_LOG.md` — detailed chronological findings from all experiments.
+- `RESEARCH.md` — thematic summary of findings and recommendations.
+- `LOG.md` — chronological experiment record.

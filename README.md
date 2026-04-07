@@ -12,7 +12,7 @@ Includes a simulation framework for evaluating convergence behavior under differ
 import { PowerRanker } from './src/index.js';
 
 const items = new Set(['a', 'b', 'c']);
-const ranker = new PowerRanker({ items, options: { k: 0.15 } });
+const ranker = new PowerRanker({ items });
 
 ranker.addPreference({ target: 'a', source: 'b', value: 1 });
 ranker.addPreference({ target: 'b', source: 'c', value: 1 });
@@ -23,7 +23,8 @@ const rankings = ranker.run();
 
 ### Options
 
-- `k` - Bayesian pseudocount for regularization (typically `C / N` where C is prior strength)
+- `normalization` - `'rankCentrality'` (default) or `'flow'`. Rank centrality eliminates degree-dependent bias on incomplete graphs. Flow normalization preserves vote accumulation (useful for aggregation).
+- `k` - Bayesian pseudocount for regularization (default: 0). Set to `C / N` where C is prior strength for sparse graphs with flow normalization.
 - `flow` - `'bidirectional'` (default) or `'unidirectional'`. Bidirectional records both directions of each vote; unidirectional only records the dominant direction.
 - `verbose` - Enable convergence logging
 
@@ -62,7 +63,7 @@ npx tsx sim/simulate.ts --items 20 --seed 42 --output json
 npx tsx sim/sweep.ts --config sweep.json
 ```
 
-See [sim/RESULTS.md](sim/RESULTS.md) for research results and methodology.
+See [sim/RESEARCH.md](sim/RESEARCH.md) for research findings and recommendations.
 
 ## Development
 

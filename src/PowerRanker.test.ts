@@ -35,7 +35,7 @@ describe('PowerRanker (bidirectional, default)', () => {
     test('returns uniform rankings with no preferences', () => {
       const ranker = new PowerRanker({
         items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-        options: { k: K },
+        options: { k: K, normalization: 'flow' },
       });
 
       const rankings = ranker.run();
@@ -48,7 +48,7 @@ describe('PowerRanker (bidirectional, default)', () => {
     test('ranks by strong preferences', () => {
       const ranker = new PowerRanker({
         items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-        options: { k: K },
+        options: { k: K, normalization: 'flow' },
       });
 
       ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
@@ -64,7 +64,7 @@ describe('PowerRanker (bidirectional, default)', () => {
     test('ranks by mild preferences', () => {
       const ranker = new PowerRanker({
         items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-        options: { k: K },
+        options: { k: K, normalization: 'flow' },
       });
 
       ranker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
@@ -87,7 +87,7 @@ describe('PowerRanker (bidirectional, default)', () => {
     test('ranks with complex preferences', () => {
       const ranker = new PowerRanker({
         items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-        options: { k: K },
+        options: { k: K, normalization: 'flow' },
       });
 
       ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
@@ -103,7 +103,7 @@ describe('PowerRanker (bidirectional, default)', () => {
     test('handles circular preferences', () => {
       const ranker = new PowerRanker({
         items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-        options: { k: K },
+        options: { k: K, normalization: 'flow' },
       });
 
       ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
@@ -120,7 +120,7 @@ describe('PowerRanker (bidirectional, default)', () => {
     test('rankings shift when preferences change', () => {
       let ranker = new PowerRanker({
         items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-        options: { k: K },
+        options: { k: K, normalization: 'flow' },
       });
       ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
       ranker.addPreference(pref(ITEM_B, ITEM_C, 1));
@@ -129,7 +129,7 @@ describe('PowerRanker (bidirectional, default)', () => {
 
       ranker = new PowerRanker({
         items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-        options: { k: K },
+        options: { k: K, normalization: 'flow' },
       });
       ranker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
       ranker.addPreference(pref(ITEM_B, ITEM_C, 1));
@@ -139,7 +139,7 @@ describe('PowerRanker (bidirectional, default)', () => {
 
       ranker = new PowerRanker({
         items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-        options: { k: K },
+        options: { k: K, normalization: 'flow' },
       });
       ranker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
       ranker.addPreference(pref(ITEM_B, ITEM_C, 0.7));
@@ -153,6 +153,7 @@ describe('PowerRanker (bidirectional, default)', () => {
     test('strong preferences converge sharply without k', () => {
       const ranker = new PowerRanker({
         items: makeItems(ITEM_A, ITEM_B, ITEM_C),
+        options: { normalization: 'flow' },
       });
 
       ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
@@ -171,7 +172,7 @@ describe('PowerRanker (unidirectional flow)', () => {
   test('ranks by strong preferences', () => {
     const ranker = new PowerRanker({
       items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-      options: { k: K, flow: 'unidirectional' },
+      options: { k: K, flow: 'unidirectional', normalization: 'flow' },
     });
 
     ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
@@ -188,7 +189,7 @@ describe('PowerRanker (unidirectional flow)', () => {
   test('ranks by mild preferences', () => {
     const ranker = new PowerRanker({
       items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-      options: { k: K, flow: 'unidirectional' },
+      options: { k: K, flow: 'unidirectional', normalization: 'flow' },
     });
 
     ranker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
@@ -212,7 +213,7 @@ describe('PowerRanker (unidirectional flow)', () => {
   test('ranks with complex preferences', () => {
     const ranker = new PowerRanker({
       items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-      options: { k: K, flow: 'unidirectional' },
+      options: { k: K, flow: 'unidirectional', normalization: 'flow' },
     });
 
     ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
@@ -228,7 +229,7 @@ describe('PowerRanker (unidirectional flow)', () => {
   test('handles circular preferences', () => {
     const ranker = new PowerRanker({
       items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-      options: { k: K, flow: 'unidirectional' },
+      options: { k: K, flow: 'unidirectional', normalization: 'flow' },
     });
 
     ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
@@ -245,7 +246,7 @@ describe('PowerRanker (unidirectional flow)', () => {
   test('rankings shift when preferences change', () => {
     let ranker = new PowerRanker({
       items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-      options: { k: K, flow: 'unidirectional' },
+      options: { k: K, flow: 'unidirectional', normalization: 'flow' },
     });
     ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
     ranker.addPreference(pref(ITEM_B, ITEM_C, 1));
@@ -254,7 +255,7 @@ describe('PowerRanker (unidirectional flow)', () => {
 
     ranker = new PowerRanker({
       items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-      options: { k: K, flow: 'unidirectional' },
+      options: { k: K, flow: 'unidirectional', normalization: 'flow' },
     });
     ranker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
     ranker.addPreference(pref(ITEM_B, ITEM_C, 1));
@@ -264,7 +265,7 @@ describe('PowerRanker (unidirectional flow)', () => {
 
     ranker = new PowerRanker({
       items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-      options: { k: K, flow: 'unidirectional' },
+      options: { k: K, flow: 'unidirectional', normalization: 'flow' },
     });
     ranker.addPreference(pref(ITEM_A, ITEM_B, 0.7));
     ranker.addPreference(pref(ITEM_B, ITEM_C, 0.7));
@@ -276,7 +277,7 @@ describe('PowerRanker (unidirectional flow)', () => {
   test('strong preferences converge sharply without k', () => {
     const ranker = new PowerRanker({
       items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-      options: { flow: 'unidirectional' },
+      options: { flow: 'unidirectional', normalization: 'flow' },
     });
 
     ranker.addPreference(pref(ITEM_A, ITEM_B, 1));
@@ -315,7 +316,7 @@ describe('activeSelect', () => {
   test('with no data, all pairs have positive weight', () => {
     const ranker = new PowerRanker({
       items: makeItems(ITEM_A, ITEM_B, ITEM_C),
-      options: { k: K },
+      options: { k: K, normalization: 'flow' },
     });
     const pairs = ranker.activeSelect();
     for (const p of pairs) {
@@ -326,7 +327,7 @@ describe('activeSelect', () => {
   test('coverage prioritizes unobserved entries', () => {
     const ranker = new PowerRanker({
       items: new Set(['a', 'b', 'c', 'd']),
-      options: { k: K },
+      options: { k: K, normalization: 'flow' },
     });
 
     for (let i = 0; i < 10; i++) {
@@ -343,7 +344,7 @@ describe('activeSelect', () => {
   test('proximity prioritizes close-ranked pairs', () => {
     const ranker = new PowerRanker({
       items: new Set(['a', 'b', 'c', 'd']),
-      options: { k: K },
+      options: { k: K, normalization: 'flow' },
     });
 
     ranker.addPreference({ target: 'a', source: 'b', value: 1 });
@@ -360,7 +361,7 @@ describe('activeSelect', () => {
   test('position prioritizes high-ranked pairs', () => {
     const ranker = new PowerRanker({
       items: new Set(['a', 'b', 'c', 'd']),
-      options: { k: K },
+      options: { k: K, normalization: 'flow' },
     });
 
     ranker.addPreference({ target: 'a', source: 'b', value: 1 });
@@ -377,7 +378,7 @@ describe('activeSelect', () => {
   test('r=0 produces uniform weights', () => {
     const ranker = new PowerRanker({
       items: new Set(['a', 'b', 'c', 'd']),
-      options: { k: K },
+      options: { k: K, normalization: 'flow' },
     });
 
     for (let i = 0; i < 10; i++) {
@@ -393,7 +394,7 @@ describe('activeSelect', () => {
   test('r<1 compresses weights toward uniform', () => {
     const ranker = new PowerRanker({
       items: new Set(['a', 'b', 'c', 'd']),
-      options: { k: K },
+      options: { k: K, normalization: 'flow' },
     });
 
     for (let i = 0; i < 10; i++) {
